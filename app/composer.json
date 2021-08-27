@@ -1,0 +1,13 @@
+{
+  "require": {
+    "php": ">=8.0",
+    "eluceo/ical": "^2",
+    "nesbot/carbon": "^2.43",
+    "vlucas/phpdotenv": "^5.3"
+  },
+  "autoload": {
+    "psr-4": {
+      "App\\": "app/"
+    }
+  }
+}
