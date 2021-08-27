@@ -1,0 +1,18 @@
+[
+  {
+    "calendar": "monthly-reminders",
+    "title": "Start of %month %year",
+    "description": "Start of new month %month %year.",
+    "pattern": 1,
+    "stacked": true
+  },
+  {
+    "calendar": "focus",
+    "title": "Focus time (%dag)",
+    "description": "Focus time (%dag)",
+    "pattern": 7,
+    "start_time": "09:30:00",
+    "end_time": "12:00:00",
+    "stacked": false
+  },
+]
