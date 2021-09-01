@@ -44,6 +44,7 @@ use JsonException;
  */
 class CalendarGenerator
 {
+    public const VERSION = '4.1';
     private string   $calendarName;
     private string   $directory;
     private array    $appointments;
@@ -311,9 +312,9 @@ class CalendarGenerator
     private function generateDescription(string $title, string $description): string
     {
         $now  = Carbon::now($_ENV['TZ'])->toIso8601String();
-        $line = "Agenda: %s\r\nTitle: %s\r\nDescription: %s\r\nLast pull: %s\r\nVersion: 4.0";
+        $line = "Agenda: %s\r\nTitle: %s\r\nDescription: %s\r\nLast pull: %s\r\nVersion: %s";
 
-        return sprintf($line, $this->calendarName, $title, $description, $now);
+        return sprintf($line, $this->calendarName, $title, $description, $now, self::VERSION);
     }
 
     /**
