@@ -3,7 +3,10 @@
     "php": ">=8.0",
     "eluceo/ical": "^2",
     "nesbot/carbon": "^2.43",
-    "vlucas/phpdotenv": "^5.3"
+    "vlucas/phpdotenv": "^5.3",
+    "ext-libxml": "*",
+    "ext-dom": "*",
+    "guzzlehttp/guzzle": "^7.3"
   },
   "autoload": {
     "psr-4": {
