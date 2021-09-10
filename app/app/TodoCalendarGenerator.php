@@ -58,6 +58,7 @@ class TodoCalendarGenerator
     /**
      * @return string
      * @throws JsonException
+     * @throws GuzzleException
      */
     public function generate(): string
     {
@@ -287,7 +288,10 @@ class TodoCalendarGenerator
             'moment' => time(),
             'todo'   => $this->todos,
         ];
-        file_put_contents($this->cacheFile, json_encode($data, JSON_PRETTY_PRINT));
+        $result = file_put_contents($this->cacheFile, json_encode($data, JSON_PRETTY_PRINT));
+        if(false === $result) {
+            die('Could not write to cache.');
+        }
     }
 
     /**
