@@ -50,15 +50,18 @@ if ($debug) {
 
 $generator = new TodoCalendarGenerator;
 $config    = [
-    'cache'    => __DIR__ . '/cache',
-    'host'     => $_ENV['NEXTCLOUD_HOST'],
-    'path'     => $_ENV['NEXTCLOUD_LOGSEQ_PARENT'],
-    'username' => $_ENV['NEXTCLOUD_USERNAME'],
-    'password' => $_ENV['NEXTCLOUD_PASS'],
+    'cache'     => __DIR__ . '/cache',
+    'host'      => $_ENV['NEXTCLOUD_HOST'],
+    'path'      => $_ENV['NEXTCLOUD_LOGSEQ_PARENT'],
+    'username'  => $_ENV['NEXTCLOUD_USERNAME'],
+    'password'  => $_ENV['NEXTCLOUD_PASS'],
+    'use_cache' => 'always',
 ];
 
 $generator->setConfiguration($config);
 $generator->parseTodos();
+
+
 if (!$debug) {
     header('Content-Type: text/calendar; charset=utf-8');
     header('Content-Disposition: attachment; filename="todo.ics"');

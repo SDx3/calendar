@@ -131,6 +131,9 @@ class TodoCalendarGenerator
         if (!file_exists($this->cacheFile)) {
             return false;
         }
+        if ('always' === $this->configuration['use_cache']) {
+            return true;
+        }
         $content = file_get_contents($this->cacheFile);
         $json    = json_decode($content, true, 8, JSON_THROW_ON_ERROR);
         $moment  = $json['moment'];
@@ -417,7 +420,7 @@ class TodoCalendarGenerator
             if ($count > 5) {
                 $html .= sprintf('<h2 style="color:red;">%s</h2><ul>', $headerDate);
             }
-            if (5===$count) {
+            if (5 === $count) {
                 $html .= sprintf('<h2 style="color:darkblue;">%s</h2><ul>', $headerDate);
             }
             if ($count < 5) {
