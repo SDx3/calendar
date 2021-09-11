@@ -31,6 +31,9 @@ require_once __DIR__ . '/vendor/autoload.php';
 
 use App\TodoCalendarGenerator;
 use Dotenv\Dotenv;
+use Monolog\Formatter\LineFormatter;
+use Monolog\Handler\StreamHandler;
+use Monolog\Logger;
 
 $dotenv = Dotenv::createImmutable(__DIR__);
 $dotenv->load();
@@ -38,6 +41,16 @@ $dotenv->load();
 if ('cli' !== php_sapi_name()) {
     exit;
 }
+
+// set up monolog
+$log          = new Logger('logger');
+$stringFormat = "[%datetime%] %level_name%: %message% %context% %extra%\n";
+$dateFormat   = 'H:i:s';
+$formatter    = new LineFormatter($stringFormat, $dateFormat, true, true);
+$handler      = new StreamHandler('php://stdout', $_ENV['LOG_LEVEL']);
+$handler->setFormatter($formatter);
+$log->pushHandler($handler);
+setlocale(LC_ALL, ['nl', 'nl_NL.UTF-8', 'nl-NL']);
 
 $generator = new TodoCalendarGenerator;
 $config    = [
@@ -50,6 +63,7 @@ $config    = [
 ];
 
 $generator->setConfiguration($config);
+$generator->setLogger($log);
 $generator->parseTodos();
 
 echo "Generated todos.\n";
