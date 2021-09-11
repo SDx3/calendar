@@ -131,6 +131,9 @@ class TodoCalendarGenerator
         if (!file_exists($this->cacheFile)) {
             return false;
         }
+        if ('never' === $this->configuration['use_cache']) {
+            return false;
+        }
         if ('always' === $this->configuration['use_cache']) {
             return true;
         }
