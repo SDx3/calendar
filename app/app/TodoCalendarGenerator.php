@@ -39,20 +39,32 @@ use Eluceo\iCal\Presentation\Factory\CalendarFactory;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
+use Monolog\Logger;
 
 /**
  * Class TodoCalendarGenerator
  */
 class TodoCalendarGenerator
 {
-    private array  $configuration;
-    private array  $todos;
-    private string $cacheFile;
+    private array   $configuration;
+    private array   $todos;
+    private string  $cacheFile;
+    private ?Logger $logger;
 
     public function __construct()
     {
         $this->configuration = [];
         $this->todos         = [];
+        $this->logger        = null;
+    }
+
+    /**
+     * @param Logger|null $logger
+     */
+    public function setLogger(?Logger $logger): void
+    {
+        $this->logger = $logger;
+        $this->debug('TodoGenerator has a logger!');
     }
 
     /**
@@ -63,9 +75,11 @@ class TodoCalendarGenerator
     {
         $valid = $this->cacheValid();
         if ($valid) {
+            $this->debug('TodoGenerator finds the cache is valid.');
             $this->loadFromCache();
         }
         if (!$valid) {
+            $this->debug('TodoGenerator finds the cache is invalid');
             $this->loadFromNextcloud();
             $this->saveToCache();
         }
@@ -82,6 +96,7 @@ class TodoCalendarGenerator
 
         /** @var string $directory */
         foreach ($directories as $directory) {
+            $this->debug(sprintf('TodoGenerator will locally parse %s', $directory));
             $this->loadFromLocalDirectory($directory);
         }
     }
@@ -95,6 +110,7 @@ class TodoCalendarGenerator
         $files = scandir($directory);
         /** @var string $file */
         foreach ($files as $file) {
+            $this->debug(sprintf('TodoGenerator found local file %s', $file));
             $parts = explode('.', $file);
             if (count($parts) > 1 && 'md' === strtolower($parts[count($parts) - 1])) {
                 // filter on extension:
@@ -121,6 +137,14 @@ class TodoCalendarGenerator
         }
     }
 
+    /**
+     * @param string $message
+     */
+    private function debug(string $message): void
+    {
+        $this->logger?->debug($message);
+    }
+
 
     /**
      * @return bool
@@ -129,20 +153,25 @@ class TodoCalendarGenerator
     private function cacheValid(): bool
     {
         if (!file_exists($this->cacheFile)) {
+            $this->debug('TodoGenerator cache not valid because file does not exist.');
             return false;
         }
         if ('never' === $this->configuration['use_cache']) {
+            $this->debug('TodoGenerator cache not valid because set to "never".');
             return false;
         }
         if ('always' === $this->configuration['use_cache']) {
+            $this->debug('TodoGenerator cache valid because set to "always".');
             return true;
         }
         $content = file_get_contents($this->cacheFile);
         $json    = json_decode($content, true, 8, JSON_THROW_ON_ERROR);
         $moment  = $json['moment'];
         if (time() - $moment < 3599) {
+            $this->debug('TodoGenerator cache valid because young file');
             return true;
         }
+        $this->debug('TodoGenerator cache invalid because old file.');
         return false;
     }
 
@@ -151,6 +180,7 @@ class TodoCalendarGenerator
      */
     private function loadFromCache(): void
     {
+        $this->debug('TodoGenerator loaded JSON from cache.');
         $content     = file_get_contents($this->cacheFile);
         $json        = json_decode($content, true, 8, JSON_THROW_ON_ERROR);
         $this->todos = $json['todo'];
@@ -168,6 +198,7 @@ class TodoCalendarGenerator
         ];
         /** @var string $url */
         foreach ($urls as $url) {
+            $this->debug(sprintf('TodoGenerator now loading from URL %s', $url));
             $this->loadFromUrl($url);
         }
     }
@@ -274,6 +305,7 @@ class TodoCalendarGenerator
         $shortName = urldecode($parts[count($parts) - 1]);
 
         if ('md' === $ext) {
+            $this->debug(sprintf('TodoGenerator now loading from markdown file %s', $file['d:href']));
             // get file content.
             $url         = sprintf('https://%s%s', $_ENV['NEXTCLOUD_HOST'], $filename);
             $fileRequest = $client->get($url, $opts);
@@ -302,6 +334,7 @@ class TodoCalendarGenerator
             $matches = [];
             preg_match($pattern, $line, $matches);
             if (isset($matches[0])) {
+                $this->debug('TodoGenerator found a TODO with date!');
                 // if it's also a valid date, continue!
                 $dateStr = str_replace(['[', ']'], '', $matches[0]);
                 $dateObj = Carbon::createFromFormat('!l d F Y', $dateStr, 'Europe/Amsterdam');
@@ -317,6 +350,7 @@ class TodoCalendarGenerator
         }
         // if it is a todo but no date ref! :(
         if (str_starts_with($line, '- TODO ') && !$this->hasDateRef($line) && str_contains($line, '#ready')) {
+            $this->debug('TodoGenerator found a TODO without a date!');
             // add it to array of todo's:
             $todo          = [
                 'page' => str_replace('.md', '', $shortName),
