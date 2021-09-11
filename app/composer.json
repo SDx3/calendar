@@ -6,7 +6,8 @@
     "vlucas/phpdotenv": "^5.3",
     "ext-libxml": "*",
     "ext-dom": "*",
-    "guzzlehttp/guzzle": "^7.3"
+    "guzzlehttp/guzzle": "^7.3",
+    "monolog/monolog": "^2.3"
   },
   "autoload": {
     "psr-4": {
