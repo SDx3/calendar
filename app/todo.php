@@ -58,10 +58,10 @@ $config    = [
 ];
 
 $generator->setConfiguration($config);
+$generator->parseTodos();
 if (!$debug) {
     header('Content-Type: text/calendar; charset=utf-8');
     header('Content-Disposition: attachment; filename="todo.ics"');
 }
-
-echo $generator->generate();
+echo $generator->generateCalendar();
 

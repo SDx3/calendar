@@ -56,11 +56,10 @@ class TodoCalendarGenerator
     }
 
     /**
-     * @return string
      * @throws JsonException
      * @throws GuzzleException
      */
-    public function generate(): string
+    public function parseTodos(): void
     {
         $valid = $this->cacheValid();
         if ($valid) {
@@ -70,8 +69,58 @@ class TodoCalendarGenerator
             $this->loadFromNextcloud();
             $this->saveToCache();
         }
-        return $this->generateCalendar();
     }
+
+    /**
+     */
+    public function parseTodosLocal(): void
+    {
+        $directories = [
+            sprintf('%s/pages', $this->configuration['local_directory']),
+            sprintf('%s/journals', $this->configuration['local_directory']),
+        ];
+
+        /** @var string $directory */
+        foreach ($directories as $directory) {
+            $this->loadFromLocalDirectory($directory);
+        }
+    }
+
+    /**
+     * @param string $directory
+     */
+    private function loadFromLocalDirectory(string $directory): void
+    {
+        // list all files, dont do a deep dive:
+        $files = scandir($directory);
+        /** @var string $file */
+        foreach ($files as $file) {
+            $parts = explode('.', $file);
+            if (count($parts) > 1 && 'md' === strtolower($parts[count($parts) - 1])) {
+                // filter on extension:
+                $this->loadFromLocalFile($directory, $file);
+            }
+
+        }
+    }
+
+    /**
+     * @param string $directory
+     * @param string $file
+     */
+    private function loadFromLocalFile(string $directory, string $file): void
+    {
+        $shortName   = str_replace('.md', '', $file);
+        $fullName    = sprintf('%s/%s', $directory, $file);
+        $fileContent = file_get_contents($fullName);
+
+        // loop over each line in markdown file
+        $lines = explode("\n", $fileContent);
+        foreach ($lines as $line) {
+            $this->processLine(trim($line), $shortName);
+        }
+    }
+
 
     /**
      * @return bool
@@ -85,7 +134,7 @@ class TodoCalendarGenerator
         $content = file_get_contents($this->cacheFile);
         $json    = json_decode($content, true, 8, JSON_THROW_ON_ERROR);
         $moment  = $json['moment'];
-        if (time() - $moment < 4 * 60 * 60) {
+        if (time() - $moment < 3599) {
             return true;
         }
         return false;
@@ -242,6 +291,7 @@ class TodoCalendarGenerator
 
         // if the line starts with "TODO" (whatever level)
         if (str_starts_with($line, '- TODO ') && $this->hasDateRef($line) && str_contains($line, '#ready')) {
+
             // do a lazy preg match
             $matches = [];
             preg_match($pattern, $line, $matches);
@@ -258,6 +308,16 @@ class TodoCalendarGenerator
                 ];
                 $this->todos[] = $todo;
             }
+        }
+        // if it is a todo but no date ref! :(
+        if (str_starts_with($line, '- TODO ') && !$this->hasDateRef($line) && str_contains($line, '#ready')) {
+            // add it to array of todo's:
+            $todo          = [
+                'page' => str_replace('.md', '', $shortName),
+                'todo' => trim(str_replace(['- TODO', '#ready'], '', $line)),
+                'date' => null,
+            ];
+            $this->todos[] = $todo;
         }
     }
 
@@ -284,12 +344,12 @@ class TodoCalendarGenerator
      */
     private function saveToCache(): void
     {
-        $data = [
+        $data   = [
             'moment' => time(),
             'todo'   => $this->todos,
         ];
         $result = file_put_contents($this->cacheFile, json_encode($data, JSON_PRETTY_PRINT));
-        if(false === $result) {
+        if (false === $result) {
             die('Could not write to cache.');
         }
     }
@@ -297,7 +357,7 @@ class TodoCalendarGenerator
     /**
      * @return string
      */
-    private function generateCalendar(): string
+    public function generateCalendar(): string
     {
         $grouped = $this->groupItems();
 
@@ -330,9 +390,47 @@ class TodoCalendarGenerator
                 $calendar->addEvent($vEvent);
             }
         }
-        // Transform domain entity into an iCalendar component
         $componentFactory = new CalendarFactory(new TransparentEventFactory);
         return $componentFactory->createCalendar($calendar);
+    }
+
+    /**
+     * @return string
+     */
+    public function generateHtml(): string
+    {
+        $grouped = $this->groupItems();
+        $html    = '';
+        foreach ($grouped as $dateString => $appointments) {
+            $count = count($appointments);
+            if (0 === $count) {
+                continue;
+            }
+            if ('0000-00-00' !== $dateString) {
+                $date       = Carbon::createFromFormat('Y-m-d', $dateString, 'Europe/Amsterdam');
+                $headerDate = str_replace('  ', ' ', $date->formatLocalized('%A %e %B %Y'));
+            }
+
+            if ('0000-00-00' === $dateString) {
+                $headerDate = '(ready but no date)';
+            }
+            if ($count > 5) {
+                $html .= sprintf('<h2 style="color:red;">%s</h2><ul>', $headerDate);
+            }
+            if (5===$count) {
+                $html .= sprintf('<h2 style="color:darkblue;">%s</h2><ul>', $headerDate);
+            }
+            if ($count < 5) {
+                $html .= sprintf('<h2>%s</h2><ul>', $headerDate);
+            }
+
+            foreach ($appointments as $appointment) {
+                $html .= sprintf('<li>%s</li>', $appointment);
+            }
+            $html .= '</ul>';
+        }
+
+        return $html;
     }
 
     /**
@@ -343,8 +441,14 @@ class TodoCalendarGenerator
         $newSet = [];
         /** @var array $item */
         foreach ($this->todos as $item) {
-            $date               = Carbon::createFromFormat(Carbon::W3C, $item['date'], 'Europe/Amsterdam');
-            $dateStr            = $date->format('Y-m-d', 'Europe/Amsterdam');
+            if (null === $item['date']) {
+                $dateStr = '0000-00-00';
+            }
+            if (null !== $item['date']) {
+                $date    = Carbon::createFromFormat(Carbon::W3C, $item['date'], 'Europe/Amsterdam');
+                $dateStr = $date->format('Y-m-d', 'Europe/Amsterdam');
+            }
+
             $newSet[$dateStr]   = $newSet[$dateStr] ?? [];
             $newSet[$dateStr][] = $item['page'] . ': ' . $item['todo'];
         }
@@ -360,5 +464,6 @@ class TodoCalendarGenerator
         $this->configuration = $configuration;
         $this->cacheFile     = sprintf('%s/%s', $this->configuration['cache'], 'todo.json');
     }
+
 
 }
