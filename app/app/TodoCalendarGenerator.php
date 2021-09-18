@@ -327,7 +327,7 @@ class TodoCalendarGenerator
     {
         $pattern = '/\[\[\w* \d\d \w* [0-9]{4}\]\]/';
 
-        // if the line starts with "TODO" (whatever level)
+        // if the line (whatever level) starts with "TODO"
         if (str_starts_with($line, '- TODO ') && $this->hasDateRef($line) && str_contains($line, '#ready')) {
 
             // do a lazy preg match
@@ -339,23 +339,26 @@ class TodoCalendarGenerator
                 $dateStr = str_replace(['[', ']'], '', $matches[0]);
                 $dateObj = Carbon::createFromFormat('!l d F Y', $dateStr, 'Europe/Amsterdam');
 
-                // add it to array of todo's:
+                // add it to array of to do's:
                 $todo          = [
-                    'page' => str_replace('.md', '', $shortName),
-                    'todo' => trim(str_replace(['- TODO', '#ready', $matches[0]], '', $line)),
-                    'date' => $dateObj->toW3cString(),
+                    'page'  => str_replace('.md', '', $shortName),
+                    'todo'  => $this->filterTodoText(str_replace($matches[0], '', $line)),
+                    'date'  => $dateObj->toW3cString(),
+                    'short' => false,
                 ];
                 $this->todos[] = $todo;
             }
         }
-        // if it is a todo but no date ref! :(
+        // if it is a to do but no date ref! :(
         if (str_starts_with($line, '- TODO ') && !$this->hasDateRef($line) && str_contains($line, '#ready')) {
             $this->debug('TodoGenerator found a TODO without a date!');
-            // add it to array of todo's:
+
+            // add it to array of to do's but keep the date NULL:
             $todo          = [
-                'page' => str_replace('.md', '', $shortName),
-                'todo' => trim(str_replace(['- TODO', '#ready'], '', $line)),
-                'date' => null,
+                'page'  => str_replace('.md', '', $shortName),
+                'todo'  => $this->filterTodoText($line),
+                'date'  => null,
+                'short' => $this->isShortTodo($line),
             ];
             $this->todos[] = $todo;
         }
@@ -446,13 +449,16 @@ class TodoCalendarGenerator
             if (0 === $count) {
                 continue;
             }
-            if ('0000-00-00' !== $dateString) {
+            if ('0000-00-00' !== $dateString && '0000-00-00-short' !== $dateString) {
                 $date       = Carbon::createFromFormat('Y-m-d', $dateString, 'Europe/Amsterdam');
                 $headerDate = str_replace('  ', ' ', $date->formatLocalized('%A %e %B %Y'));
             }
+            if('0000-00-00-short' === $dateString) {
+                $headerDate = 'Very short TODO\'s';
+            }
 
             if ('0000-00-00' === $dateString) {
-                $headerDate = '(ready but no date)';
+                $headerDate = 'Ready but no date';
             }
             if ($count > 5) {
                 $html .= sprintf('<h2 style="color:red;">%s</h2><ul>', $headerDate);
@@ -465,7 +471,16 @@ class TodoCalendarGenerator
             }
 
             foreach ($appointments as $appointment) {
-                $html .= sprintf('<li>%s</li>', $appointment);
+                $color = '#000';
+                if (str_contains($appointment, 'Ensure')) {
+                    $color = '#0a0';
+                }
+                if (str_contains($appointment, 'Follow up')) {
+                    $color = '#080';
+                }
+
+
+                $html .= sprintf('<li style="color:%s">%s</li>', $color, $appointment);
             }
             $html .= '</ul>';
         }
@@ -489,6 +504,11 @@ class TodoCalendarGenerator
                 $dateStr = $date->format('Y-m-d', 'Europe/Amsterdam');
             }
 
+            // separate list of short to do's.
+            if ($item['short']) {
+                $dateStr = '0000-00-00-short';
+            }
+
             $newSet[$dateStr]   = $newSet[$dateStr] ?? [];
             $newSet[$dateStr][] = $item['page'] . ': ' . $item['todo'];
         }
@@ -503,6 +523,31 @@ class TodoCalendarGenerator
     {
         $this->configuration = $configuration;
         $this->cacheFile     = sprintf('%s/%s', $this->configuration['cache'], 'todo.json');
+    }
+
+    /**
+     * @param string $line
+     * @return string
+     */
+    private function filterTodoText(string $line): string
+    {
+        $search  = ['- TODO', '#ready', '#nodate'];
+        $replace = '';
+        return trim(str_replace($search, $replace, $line));
+        // trim(str_replace(['- TODO', '#ready', '#nodate', $matches[0]], '', $line)),
+
+        //trim(str_replace(['- TODO', '#ready', '#nodate'], '', $line)),
+
+        //return $line;
+    }
+
+    /**
+     * @param string $line
+     * @return bool
+     */
+    private function isShortTodo(string $line): bool
+    {
+        return str_contains($line, '#5m');
     }
 
 
