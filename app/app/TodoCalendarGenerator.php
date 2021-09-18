@@ -478,6 +478,9 @@ class TodoCalendarGenerator
                 if (str_contains($appointment, 'Follow up')) {
                     $color = '#080';
                 }
+                if (str_contains($appointment, 'Meet')) {
+                    $color = '#070';
+                }
 
 
                 $html .= sprintf('<li style="color:%s">%s</li>', $color, $appointment);
