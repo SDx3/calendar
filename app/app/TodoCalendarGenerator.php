@@ -433,7 +433,7 @@ class TodoCalendarGenerator
                 $calendar->addEvent($vEvent);
             }
         }
-        $componentFactory = new CalendarFactory(new TransparentEventFactory);
+        $componentFactory = new RefreshFactory(new TransparentEventFactory);
         return $componentFactory->createCalendar($calendar);
     }
 
