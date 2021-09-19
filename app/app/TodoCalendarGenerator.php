@@ -35,7 +35,6 @@ use Eluceo\iCal\Domain\ValueObject\EmailAddress;
 use Eluceo\iCal\Domain\ValueObject\Organizer;
 use Eluceo\iCal\Domain\ValueObject\TimeSpan;
 use Eluceo\iCal\Domain\ValueObject\UniqueIdentifier;
-use Eluceo\iCal\Presentation\Factory\CalendarFactory;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
@@ -402,7 +401,7 @@ class TodoCalendarGenerator
      */
     public function generateCalendar(): string
     {
-        $grouped = $this->groupItems();
+        $grouped = $this->groupItemsCalendar();
 
         // loop set and create calendar items
         $calendar = new Calendar;
@@ -417,19 +416,27 @@ class TodoCalendarGenerator
             $appointmentStart->setTime(6, 0);
             $appointmentEnd->setTime(6, 30);
 
+            /** @var array $appointment */
             foreach ($appointments as $appointment) {
                 // stacked date and time:
-                $string     = substr(hash('sha256', sprintf('%s-%s', $date->format('Y-m-d'), $appointment)), 0, 16);
+                $string     = substr(hash('sha256', sprintf('%s-%s', $date->format('Y-m-d'), $appointment['todo'])), 0, 16);
                 $uid        = new UniqueIdentifier($string);
                 $occurrence = new TimeSpan(new DateTime($appointmentStart->toDateTime(), true), new DateTime($appointmentEnd->toDateTime(), true));
                 $organizer  = new Organizer(new EmailAddress($_ENV['ORGANIZER_MAIL']), $_ENV['ORGANIZER_NAME'], null, new EmailAddress($_ENV['ORGANIZER_MAIL']));
+
+                // fix description:
+                $appointment['todo'] = trim(str_replace(sprintf('%s:', $appointment['label']), '', $appointment['todo']));
+                $summary             = sprintf('[%s] [%s] %s', $appointment['label'], $appointment['page'], $appointment['todo']);
 
                 // adjust time for the next one:
                 $appointmentStart->addMinutes(30);
                 $appointmentEnd->addMinutes(30);
 
                 $vEvent = new Event($uid);
-                $vEvent->setOrganizer($organizer)->setSummary($appointment)->setDescription($appointment)->setOccurrence($occurrence);
+                $vEvent->setOrganizer($organizer)
+                       ->setSummary($summary)
+                       ->setDescription($appointment['todo'])
+                       ->setOccurrence($occurrence);
                 $calendar->addEvent($vEvent);
             }
         }
@@ -442,50 +449,29 @@ class TodoCalendarGenerator
      */
     public function generateHtml(): string
     {
-        $grouped = $this->groupItems();
+        $grouped = $this->groupItemsHtml();
         $html    = '';
+        /**
+         * @var string $dateString
+         * @var array  $appointments
+         */
         foreach ($grouped as $dateString => $appointments) {
             $count = count($appointments);
             if (0 === $count) {
                 continue;
             }
-            if ('0000-00-00' !== $dateString && '0000-00-00-short' !== $dateString) {
-                $date       = Carbon::createFromFormat('Y-m-d', $dateString, 'Europe/Amsterdam');
-                $headerDate = str_replace('  ', ' ', $date->formatLocalized('%A %e %B %Y'));
-            }
-            if('0000-00-00-short' === $dateString) {
-                $headerDate = 'Very short TODO\'s';
-            }
 
+            // render short to do's:
+            if ('0000-00-00-short' === $dateString) {
+                $html .= $this->renderShortTodos($appointments);
+                continue;
+            }
             if ('0000-00-00' === $dateString) {
-                $headerDate = 'Ready but no date';
+                $html .= $this->renderDatelessTodos($appointments);
+                continue;
             }
-            if ($count > 5) {
-                $html .= sprintf('<h2 style="color:red;">%s</h2><ul>', $headerDate);
-            }
-            if (5 === $count) {
-                $html .= sprintf('<h2 style="color:darkblue;">%s</h2><ul>', $headerDate);
-            }
-            if ($count < 5) {
-                $html .= sprintf('<h2>%s</h2><ul>', $headerDate);
-            }
-
-            foreach ($appointments as $appointment) {
-                $color = '#000';
-                if (str_contains($appointment, 'Ensure')) {
-                    $color = '#0a0';
-                }
-                if (str_contains($appointment, 'Follow up')) {
-                    $color = '#080';
-                }
-                if (str_contains($appointment, 'Meet')) {
-                    $color = '#070';
-                }
-
-
-                $html .= sprintf('<li style="color:%s">%s</li>', $color, $appointment);
-            }
-            $html .= '</ul>';
+            $date = Carbon::createFromFormat('Y-m-d', $dateString, 'Europe/Amsterdam');
+            $html .= $this->renderTodos($appointments, $date);
         }
 
         return $html;
@@ -494,7 +480,7 @@ class TodoCalendarGenerator
     /**
      * @return array
      */
-    private function groupItems(): array
+    private function groupItemsHtml(): array
     {
         $newSet = [];
         /** @var array $item */
@@ -508,12 +494,37 @@ class TodoCalendarGenerator
             }
 
             // separate list of short to do's.
-            if ($item['short']) {
+            if (isset($item['short']) && $item['short']) {
                 $dateStr = '0000-00-00-short';
             }
 
             $newSet[$dateStr]   = $newSet[$dateStr] ?? [];
-            $newSet[$dateStr][] = $item['page'] . ': ' . $item['todo'];
+            $newSet[$dateStr][] = sprintf('<span class="badge bg-secondary">%s</span> %s', $item['page'], $item['todo']);
+        }
+        ksort($newSet);
+        return $newSet;
+    }
+
+    /**
+     * @return array
+     */
+    private function groupItemsCalendar(): array
+    {
+        $newSet = [];
+        /** @var array $item */
+        foreach ($this->todos as $item) {
+            if (null === $item['date']) {
+                continue;
+            }
+            // separate list of short to do's.
+            if (isset($item['short']) && $item['short']) {
+                continue;
+            }
+            $date    = Carbon::createFromFormat(Carbon::W3C, $item['date'], 'Europe/Amsterdam');
+            $dateStr = $date->format('Y-m-d', 'Europe/Amsterdam');
+
+            $newSet[$dateStr]   = $newSet[$dateStr] ?? [];
+            $newSet[$dateStr][] = ['page' => $item['page'], 'todo' => $item['todo'], 'label' => $this->getTypeLabel($item['todo'])];
         }
         ksort($newSet);
         return $newSet;
@@ -534,14 +545,9 @@ class TodoCalendarGenerator
      */
     private function filterTodoText(string $line): string
     {
-        $search  = ['- TODO', '#ready', '#nodate'];
+        $search  = ['- TODO', '#ready', '#nodate', '#5m'];
         $replace = '';
         return trim(str_replace($search, $replace, $line));
-        // trim(str_replace(['- TODO', '#ready', '#nodate', $matches[0]], '', $line)),
-
-        //trim(str_replace(['- TODO', '#ready', '#nodate'], '', $line)),
-
-        //return $line;
     }
 
     /**
@@ -553,5 +559,95 @@ class TodoCalendarGenerator
         return str_contains($line, '#5m');
     }
 
+    /**
+     * @param array $appointments
+     * @return string
+     */
+    private function renderShortTodos(array $appointments): string
+    {
+        $html = '<h2>Very short TODO\'s</h2><ol>';
+        /** @var string $appointment */
+        foreach ($appointments as $appointment) {
+            $html .= sprintf('<li>%s</li>', $this->colorizeTodo($appointment));
+        }
+        $html .= '</ol>';
+        return $html;
+
+    }
+
+    /**
+     * @param array $appointments
+     * @return string
+     */
+    private function renderDatelessTodos(array $appointments): string
+    {
+        $html = '<h2>TODO\'s with no date</h2><ol>';
+        /** @var string $appointment */
+        foreach ($appointments as $appointment) {
+            $html .= sprintf('<li>%s</li>', $this->colorizeTodo($appointment));
+        }
+        $html .= '</ol>';
+        return $html;
+
+    }
+
+    /**
+     * @param string $appointment
+     * @return string
+     */
+    private function colorizeTodo(string $appointment): string
+    {
+        $color      = '#444';
+        $typeLabel  = '';
+        $todoTypes  = [
+            'Ensure'    => 'bg-warning text-dark',
+            'Follow up' => 'bg-primary',
+            'Meet'      => 'bg-info',
+        ];
+        $foundLabel = $this->getTypeLabel($appointment);
+        if (null !== $foundLabel) {
+            // remove type from to do
+            $search      = sprintf('%s:', $foundLabel);
+            $appointment = str_replace($search, '', $appointment);
+
+            // add type to $type with the right color:
+            $typeLabel = sprintf('<span class="badge %s">%s</span>', $todoTypes[$foundLabel], $foundLabel);
+        }
+
+        return trim(sprintf('%s <span style="color:%s">%s</span>', $typeLabel, $color, $appointment));
+    }
+
+    /**
+     * @param array  $appointments
+     * @param Carbon $date
+     * @return string
+     */
+    private function renderTodos(array $appointments, Carbon $date): string
+    {
+        $html = sprintf('<h2>%s</h2><ol>', str_replace('  ', ' ', $date->formatLocalized('%A %e %B %Y')));
+        /** @var string $appointment */
+        foreach ($appointments as $appointment) {
+            $html .= sprintf('<li>%s</li>', $this->colorizeTodo($appointment));
+        }
+        $html .= '</ol>';
+        return $html;
+    }
+
+    /**
+     * @param string $appointment
+     * @return string|null
+     */
+    private function getTypeLabel(string $appointment): ?string
+    {
+        $todoTypes = ['Ensure', 'Follow up', 'Meet',];
+        /** @var string $search */
+        foreach ($todoTypes as $todoType) {
+            $search = sprintf('%s:', $todoType);
+            if (str_contains($appointment, $search)) {
+                return $todoType;
+            }
+        }
+        return null;
+    }
 
 }
