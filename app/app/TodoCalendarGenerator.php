@@ -426,6 +426,9 @@ class TodoCalendarGenerator
 
                 // fix description:
                 $appointment['todo'] = trim(str_replace(sprintf('%s:', $appointment['label']), '', $appointment['todo']));
+                if(0===strlen((string)$appointment['label'])) {
+                    $appointment['label'] = '!';
+                }
                 $summary             = sprintf('[%s] [%s] %s', $appointment['label'], $appointment['page'], $appointment['todo']);
 
                 // adjust time for the next one:
