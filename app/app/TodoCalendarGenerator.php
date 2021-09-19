@@ -82,6 +82,7 @@ class TodoCalendarGenerator
             $this->loadFromNextcloud();
             $this->saveToCache();
         }
+        $this->debug(sprintf('TodoGenerator has found %d todo\'s!', count($this->todos)));
     }
 
     /**
