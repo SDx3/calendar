@@ -47,6 +47,7 @@ class TodoCalendarGenerator
 {
     private array   $configuration;
     private array   $todos;
+    private array   $laters;
     private string  $cacheFile;
     private ?Logger $logger;
 
@@ -54,6 +55,7 @@ class TodoCalendarGenerator
     {
         $this->configuration = [];
         $this->todos         = [];
+        $this->laters        = [];
         $this->logger        = null;
     }
 
@@ -189,6 +191,7 @@ class TodoCalendarGenerator
         $content     = file_get_contents($this->cacheFile);
         $json        = json_decode($content, true, 8, JSON_THROW_ON_ERROR);
         $this->todos = $json['todo'];
+        $this->laters = $json['laters'];
     }
 
     /**
@@ -343,7 +346,6 @@ class TodoCalendarGenerator
 
         // if the line (whatever level) starts with "TODO"
         if (str_starts_with($line, '- TODO ') && $this->hasDateRef($line) && str_contains($line, '#ready')) {
-
             // do a lazy preg match
             $matches = [];
             preg_match($pattern, $line, $matches);
@@ -363,6 +365,7 @@ class TodoCalendarGenerator
                 $this->todos[] = $todo;
             }
         }
+
         // if it is a to do but no date ref! :(
         if (str_starts_with($line, '- TODO ') && !$this->hasDateRef($line) && str_contains($line, '#ready')) {
             $this->debug('TodoGenerator found a TODO without a date!');
@@ -375,6 +378,18 @@ class TodoCalendarGenerator
                 'short' => $this->isShortTodo($line),
             ];
             $this->todos[] = $todo;
+        }
+
+        // if it starts with - LATER
+        // if the line (whatever level) starts with "TODO"
+        if (str_starts_with($line, '- LATER ')) {
+            $this->debug('TodoGenerator found a LATER');
+            $later          = [
+                'page'  => str_replace('.md', '', $shortName),
+                'later' => $this->filterTodoText($line),
+                'short' => $this->isShortTodo($line),
+            ];
+            $this->laters[] = $later;
         }
     }
 
@@ -405,6 +420,7 @@ class TodoCalendarGenerator
         $data   = [
             'moment' => time(),
             'todo'   => $this->todos,
+            'laters' => $this->laters,
         ];
         $result = file_put_contents($this->cacheFile, json_encode($data, JSON_PRETTY_PRINT));
         if (false === $result) {
@@ -444,7 +460,7 @@ class TodoCalendarGenerator
 
                 // fix description:
                 $appointment['todo'] = trim(str_replace(sprintf('%s:', $appointment['label']), '', $appointment['todo']));
-                if (0 === strlen((string)$appointment['label'])) {
+                if (0 === strlen((string) $appointment['label'])) {
                     $appointment['label'] = '!';
                 }
                 $summary = sprintf('[%s] [%s] %s', $appointment['label'], $appointment['page'], $appointment['todo']);
@@ -473,6 +489,7 @@ class TodoCalendarGenerator
     {
         $grouped = $this->groupItemsHtml();
         $html    = '';
+
         /**
          * @var string $dateString
          * @var array  $appointments
@@ -495,6 +512,9 @@ class TodoCalendarGenerator
             $date = Carbon::createFromFormat('Y-m-d', $dateString, 'Europe/Amsterdam');
             $html .= $this->renderTodos($appointments, $date);
         }
+
+        // render laters
+        $html .= $this->renderLaters();
 
         return $html;
     }
@@ -521,7 +541,12 @@ class TodoCalendarGenerator
             }
 
             $newSet[$dateStr]   = $newSet[$dateStr] ?? [];
-            $newSet[$dateStr][] = sprintf('<span class="badge bg-secondary">%s</span> %s', $item['page'], $item['todo']);
+            $newSet[$dateStr][] = [
+                'full' => sprintf('<span class="badge bg-secondary">%s</span> %s', $item['page'], $item['todo']),
+                'page' => $item['page'],
+                'todo' => $item['todo'],
+
+            ];
         }
         ksort($newSet);
 
@@ -570,7 +595,7 @@ class TodoCalendarGenerator
      */
     private function filterTodoText(string $line): string
     {
-        $search  = ['- TODO', '#ready', '#nodate', '#5m'];
+        $search  = ['- TODO', '#ready', '#nodate', '#5m', '- LATER'];
         $replace = '';
 
         return trim(str_replace($search, $replace, $line));
@@ -594,7 +619,7 @@ class TodoCalendarGenerator
     private function renderShortTodos(array $appointments): string
     {
         $html = '<h2>Very short TODO\'s</h2><ol>';
-        /** @var string $appointment */
+        /** @var array $appointment */
         foreach ($appointments as $appointment) {
             $html .= sprintf('<li>%s</li>', $this->colorizeTodo($appointment));
         }
@@ -612,7 +637,7 @@ class TodoCalendarGenerator
     private function renderDatelessTodos(array $appointments): string
     {
         $html = '<h2>TODO\'s with no date</h2><ol>';
-        /** @var string $appointment */
+        /** @var array $appointment */
         foreach ($appointments as $appointment) {
             $html .= sprintf('<li>%s</li>', $this->colorizeTodo($appointment));
         }
@@ -623,21 +648,21 @@ class TodoCalendarGenerator
     }
 
     /**
-     * @param string $appointment
-     *
+     * @param array $appointment
      * @return string
      */
-    private function colorizeTodo(string $appointment): string
+    private function colorizeTodo(array $appointment): string
     {
         $color      = '#444';
         $typeLabel  = '';
+        $todoText   = array_key_exists('later', $appointment) ? $appointment['later'] : $appointment['todo'];
         $todoTypes  = [
             'Ensure'    => 'bg-warning text-dark',
             'Follow up' => 'bg-primary',
             'Meet'      => 'bg-info',
             'Discuss'   => 'bg-info',
         ];
-        $foundLabel = $this->getTypeLabel($appointment);
+        $foundLabel = $this->getTypeLabel($todoText);
         if (null !== $foundLabel) {
             // remove type from to do
             $search      = sprintf('%s:', $foundLabel);
@@ -647,7 +672,7 @@ class TodoCalendarGenerator
             $typeLabel = sprintf('<span class="badge %s">%s</span>', $todoTypes[$foundLabel], $foundLabel);
         }
 
-        return trim(sprintf('%s <span style="color:%s">%s</span>', $typeLabel, $color, $appointment));
+        return trim(sprintf('<span class="badge bg-secondary">%s</span> <span style="color:%s">%s</span> %s', $appointment['page'], $color, $typeLabel, $todoText));
     }
 
     /**
@@ -659,7 +684,7 @@ class TodoCalendarGenerator
     private function renderTodos(array $appointments, Carbon $date): string
     {
         $html = sprintf('<h2>%s</h2><ol>', str_replace('  ', ' ', $date->formatLocalized('%A %e %B %Y')));
-        /** @var string $appointment */
+        /** @var array $appointment */
         foreach ($appointments as $appointment) {
             $html .= sprintf('<li>%s</li>', $this->colorizeTodo($appointment));
         }
@@ -685,6 +710,23 @@ class TodoCalendarGenerator
         }
 
         return null;
+    }
+
+    /**
+     * @return string
+     */
+    private function renderLaters(): string
+    {
+        if (0 === count($this->laters)) {
+            return '';
+        }
+        $html = '<h2>Later (ooit)</h2><ol>';
+
+        foreach ($this->laters as $later) {
+            $html .= sprintf('<li>%s</li>', $this->colorizeTodo($later));
+        }
+        $html .= '</ol>';
+        return $html;
     }
 
 }
