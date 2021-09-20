@@ -154,14 +154,17 @@ class TodoCalendarGenerator
     {
         if (!file_exists($this->cacheFile)) {
             $this->debug('TodoGenerator cache not valid because file does not exist.');
+
             return false;
         }
         if ('never' === $this->configuration['use_cache']) {
             $this->debug('TodoGenerator cache not valid because set to "never".');
+
             return false;
         }
         if ('always' === $this->configuration['use_cache']) {
             $this->debug('TodoGenerator cache valid because set to "always".');
+
             return true;
         }
         $content = file_get_contents($this->cacheFile);
@@ -169,9 +172,11 @@ class TodoCalendarGenerator
         $moment  = $json['moment'];
         if (time() - $moment < 3599) {
             $this->debug('TodoGenerator cache valid because young file');
+
             return true;
         }
         $this->debug('TodoGenerator cache invalid because old file.');
+
         return false;
     }
 
@@ -188,13 +193,18 @@ class TodoCalendarGenerator
 
     /**
      * Load to do's from Nextcloud by looping all files etc.
+     *
      * @throws GuzzleException
      */
     private function loadFromNextcloud(): void
     {
         $urls = [
-            sprintf('https://%s/remote.php/dav/files/%s/%s/pages/', $this->configuration['host'], $this->configuration['username'], $this->configuration['path']),
-            sprintf('https://%s/remote.php/dav/files/%s/%s/journals/', $this->configuration['host'], $this->configuration['username'], $this->configuration['path']),
+            sprintf(
+                'https://%s/remote.php/dav/files/%s/%s/pages/', $this->configuration['host'], $this->configuration['username'], $this->configuration['path']
+            ),
+            sprintf(
+                'https://%s/remote.php/dav/files/%s/%s/journals/', $this->configuration['host'], $this->configuration['username'], $this->configuration['path']
+            ),
         ];
         /** @var string $url */
         foreach ($urls as $url) {
@@ -205,6 +215,7 @@ class TodoCalendarGenerator
 
     /**
      * @param string $url
+     *
      * @throws GuzzleException
      */
     private function loadFromUrl(string $url): void
@@ -215,7 +226,7 @@ class TodoCalendarGenerator
             'headers' => [],
         ];
         $res    = $client->request('PROPFIND', $url, $opts);
-        $string = (string) $res->getBody();
+        $string = (string)$res->getBody();
         $array  = $this->XMLtoArray($string);
         /** @var array $file */
         foreach ($array['d:multistatus']['d:response'] as $file) {
@@ -225,6 +236,7 @@ class TodoCalendarGenerator
 
     /**
      * @param string $xml
+     *
      * @return array
      */
     private function XMLtoArray(string $xml): array
@@ -243,6 +255,7 @@ class TodoCalendarGenerator
 
     /**
      * @param DOMDocument|DOMElement $root
+     *
      * @return array|string
      */
     private function DOMtoArray(DOMDocument|DOMElement $root): array|string
@@ -288,6 +301,7 @@ class TodoCalendarGenerator
 
     /**
      * @param array $file
+     *
      * @throws GuzzleException
      */
     private function loadFromFile(array $file): void
@@ -309,7 +323,7 @@ class TodoCalendarGenerator
             // get file content.
             $url         = sprintf('https://%s%s', $_ENV['NEXTCLOUD_HOST'], $filename);
             $fileRequest = $client->get($url, $opts);
-            $fileContent = (string) $fileRequest->getBody();
+            $fileContent = (string)$fileRequest->getBody();
 
             // loop over each line in markdown file
             $lines = explode("\n", $fileContent);
@@ -368,6 +382,7 @@ class TodoCalendarGenerator
      * I can't believe im this lazy!
      *
      * @param string $string
+     *
      * @return bool
      */
     private function hasDateRef(string $string): bool
@@ -423,14 +438,16 @@ class TodoCalendarGenerator
                 $string     = substr(hash('sha256', sprintf('%s-%s', $date->format('Y-m-d'), $appointment['todo'])), 0, 16);
                 $uid        = new UniqueIdentifier($string);
                 $occurrence = new TimeSpan(new DateTime($appointmentStart->toDateTime(), true), new DateTime($appointmentEnd->toDateTime(), true));
-                $organizer  = new Organizer(new EmailAddress($_ENV['ORGANIZER_MAIL']), $_ENV['ORGANIZER_NAME'], null, new EmailAddress($_ENV['ORGANIZER_MAIL']));
+                $organizer  = new Organizer(
+                    new EmailAddress($_ENV['ORGANIZER_MAIL']), $_ENV['ORGANIZER_NAME'], null, new EmailAddress($_ENV['ORGANIZER_MAIL'])
+                );
 
                 // fix description:
                 $appointment['todo'] = trim(str_replace(sprintf('%s:', $appointment['label']), '', $appointment['todo']));
-                if(0===strlen((string)$appointment['label'])) {
+                if (0 === strlen((string)$appointment['label'])) {
                     $appointment['label'] = '!';
                 }
-                $summary             = sprintf('[%s] [%s] %s', $appointment['label'], $appointment['page'], $appointment['todo']);
+                $summary = sprintf('[%s] [%s] %s', $appointment['label'], $appointment['page'], $appointment['todo']);
 
                 // adjust time for the next one:
                 $appointmentStart->addMinutes(30);
@@ -445,6 +462,7 @@ class TodoCalendarGenerator
             }
         }
         $componentFactory = new RefreshFactory(new TransparentEventFactory);
+
         return $componentFactory->createCalendar($calendar);
     }
 
@@ -506,6 +524,7 @@ class TodoCalendarGenerator
             $newSet[$dateStr][] = sprintf('<span class="badge bg-secondary">%s</span> %s', $item['page'], $item['todo']);
         }
         ksort($newSet);
+
         return $newSet;
     }
 
@@ -531,6 +550,7 @@ class TodoCalendarGenerator
             $newSet[$dateStr][] = ['page' => $item['page'], 'todo' => $item['todo'], 'label' => $this->getTypeLabel($item['todo'])];
         }
         ksort($newSet);
+
         return $newSet;
     }
 
@@ -545,17 +565,20 @@ class TodoCalendarGenerator
 
     /**
      * @param string $line
+     *
      * @return string
      */
     private function filterTodoText(string $line): string
     {
         $search  = ['- TODO', '#ready', '#nodate', '#5m'];
         $replace = '';
+
         return trim(str_replace($search, $replace, $line));
     }
 
     /**
      * @param string $line
+     *
      * @return bool
      */
     private function isShortTodo(string $line): bool
@@ -565,6 +588,7 @@ class TodoCalendarGenerator
 
     /**
      * @param array $appointments
+     *
      * @return string
      */
     private function renderShortTodos(array $appointments): string
@@ -575,12 +599,14 @@ class TodoCalendarGenerator
             $html .= sprintf('<li>%s</li>', $this->colorizeTodo($appointment));
         }
         $html .= '</ol>';
+
         return $html;
 
     }
 
     /**
      * @param array $appointments
+     *
      * @return string
      */
     private function renderDatelessTodos(array $appointments): string
@@ -591,12 +617,14 @@ class TodoCalendarGenerator
             $html .= sprintf('<li>%s</li>', $this->colorizeTodo($appointment));
         }
         $html .= '</ol>';
+
         return $html;
 
     }
 
     /**
      * @param string $appointment
+     *
      * @return string
      */
     private function colorizeTodo(string $appointment): string
@@ -607,6 +635,7 @@ class TodoCalendarGenerator
             'Ensure'    => 'bg-warning text-dark',
             'Follow up' => 'bg-primary',
             'Meet'      => 'bg-info',
+            'Discuss'   => 'bg-info',
         ];
         $foundLabel = $this->getTypeLabel($appointment);
         if (null !== $foundLabel) {
@@ -624,6 +653,7 @@ class TodoCalendarGenerator
     /**
      * @param array  $appointments
      * @param Carbon $date
+     *
      * @return string
      */
     private function renderTodos(array $appointments, Carbon $date): string
@@ -634,16 +664,18 @@ class TodoCalendarGenerator
             $html .= sprintf('<li>%s</li>', $this->colorizeTodo($appointment));
         }
         $html .= '</ol>';
+
         return $html;
     }
 
     /**
      * @param string $appointment
+     *
      * @return string|null
      */
     private function getTypeLabel(string $appointment): ?string
     {
-        $todoTypes = ['Ensure', 'Follow up', 'Meet',];
+        $todoTypes = ['Ensure', 'Follow up', 'Meet','Discuss'];
         /** @var string $search */
         foreach ($todoTypes as $todoType) {
             $search = sprintf('%s:', $todoType);
@@ -651,6 +683,7 @@ class TodoCalendarGenerator
                 return $todoType;
             }
         }
+
         return null;
     }
 
