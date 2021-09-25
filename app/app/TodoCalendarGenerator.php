@@ -188,9 +188,9 @@ class TodoCalendarGenerator
     private function loadFromCache(): void
     {
         $this->debug('TodoGenerator loaded JSON from cache.');
-        $content     = file_get_contents($this->cacheFile);
-        $json        = json_decode($content, true, 8, JSON_THROW_ON_ERROR);
-        $this->todos = $json['todo'];
+        $content      = file_get_contents($this->cacheFile);
+        $json         = json_decode($content, true, 8, JSON_THROW_ON_ERROR);
+        $this->todos  = $json['todo'];
         $this->laters = $json['laters'];
     }
 
@@ -229,7 +229,7 @@ class TodoCalendarGenerator
             'headers' => [],
         ];
         $res    = $client->request('PROPFIND', $url, $opts);
-        $string = (string)$res->getBody();
+        $string = (string) $res->getBody();
         $array  = $this->XMLtoArray($string);
         /** @var array $file */
         foreach ($array['d:multistatus']['d:response'] as $file) {
@@ -326,7 +326,7 @@ class TodoCalendarGenerator
             // get file content.
             $url         = sprintf('https://%s%s', $_ENV['NEXTCLOUD_HOST'], $filename);
             $fileRequest = $client->get($url, $opts);
-            $fileContent = (string)$fileRequest->getBody();
+            $fileContent = (string) $fileRequest->getBody();
 
             // loop over each line in markdown file
             $lines = explode("\n", $fileContent);
@@ -661,15 +661,19 @@ class TodoCalendarGenerator
             'Follow up' => 'bg-primary',
             'Meet'      => 'bg-info',
             'Discuss'   => 'bg-info',
+            'Track'     => 'bg-warning text-dark',
         ];
         $foundLabel = $this->getTypeLabel($todoText);
         if (null !== $foundLabel) {
             // remove type from to do
-            $search      = sprintf('%s:', $foundLabel);
-            $appointment = str_replace($search, '', $appointment);
+            $search   = sprintf('%s:', $foundLabel);
+            $todoText = str_replace($search, '', $todoText);
 
             // add type to $type with the right color:
             $typeLabel = sprintf('<span class="badge %s">%s</span>', $todoTypes[$foundLabel], $foundLabel);
+        }
+        if ('' === $typeLabel) {
+            $typeLabel = '<span class="badge bg-danger">!!</span>';
         }
 
         return trim(sprintf('<span class="badge bg-secondary">%s</span> <span style="color:%s">%s</span> %s', $appointment['page'], $color, $typeLabel, $todoText));
@@ -700,7 +704,7 @@ class TodoCalendarGenerator
      */
     private function getTypeLabel(string $appointment): ?string
     {
-        $todoTypes = ['Ensure', 'Follow up', 'Meet','Discuss'];
+        $todoTypes = ['Ensure', 'Follow up', 'Meet', 'Discuss', 'Track'];
         /** @var string $search */
         foreach ($todoTypes as $todoType) {
             $search = sprintf('%s:', $todoType);
