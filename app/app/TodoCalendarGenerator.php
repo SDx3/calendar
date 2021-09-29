@@ -358,13 +358,13 @@ class TodoCalendarGenerator
         $shortName = urldecode($parts[count($parts) - 1]);
 
         if ('md' === $ext) {
-            $this->debug(sprintf('TodoGenerator now loading from markdown file %s', $file['d:href']));
             // get file content.
             $url         = sprintf('https://%s%s', $_ENV['NEXTCLOUD_HOST'], $filename);
             $fileRequest = $client->get($url, $opts);
             $fileContent = (string)$fileRequest->getBody();
 
             if (str_contains($fileContent, 'TODO')) {
+                $this->debug(sprintf('TodoGenerator now loading from markdown file %s', $file['d:href']));
                 // parse as html
                 $this->parseFileContent($fileContent, $shortName);
             }
