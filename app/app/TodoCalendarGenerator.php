@@ -372,65 +372,6 @@ class TodoCalendarGenerator
     }
 
     /**
-     * Process a line that may or may not be a to do item.
-     *
-     * @param string $line
-     * @param string $shortName
-     */
-    private function processLine(string $line, string $shortName): void
-    {
-        $pattern = '/\[\[\w* \d\d \w* [0-9]{4}\]\]/';
-
-        // if the line (whatever level) starts with "TODO"
-        if (str_starts_with($line, '- TODO ') && $this->hasDateRef($line) && str_contains($line, '#ready')) {
-            // do a lazy preg match
-            $matches = [];
-            preg_match($pattern, $line, $matches);
-            if (isset($matches[0])) {
-                $this->debug('TodoGenerator found a TODO with date!');
-                // if it's also a valid date, continue!
-                $dateStr = str_replace(['[', ']'], '', $matches[0]);
-                $dateObj = Carbon::createFromFormat('!l d F Y', $dateStr, 'Europe/Amsterdam');
-
-                // add it to array of to do's:
-                $todo          = [
-                    'page'  => str_replace('.md', '', $shortName),
-                    'todo'  => $this->filterTodoText(str_replace($matches[0], '', $line)),
-                    'date'  => $dateObj->toW3cString(),
-                    'short' => false,
-                ];
-                $this->todos[] = $todo;
-            }
-        }
-
-        // if it is a to do but no date ref! :(
-        if (str_starts_with($line, '- TODO ') && !$this->hasDateRef($line) && str_contains($line, '#ready')) {
-            $this->debug('TodoGenerator found a TODO without a date!');
-
-            // add it to array of to do's but keep the date NULL:
-            $todo          = [
-                'page'  => str_replace('.md', '', $shortName),
-                'todo'  => $this->filterTodoText($line),
-                'date'  => null,
-                'short' => $this->isShortTodo($line),
-            ];
-            $this->todos[] = $todo;
-        }
-
-        // if it starts with - LATER
-        // if the line (whatever level) starts with "TODO"
-        if (str_starts_with($line, '- LATER ')) {
-            $this->debug('TodoGenerator found a LATER');
-            $later          = [
-                'page'  => str_replace('.md', '', $shortName),
-                'later' => $this->filterTodoText($line),
-                'short' => $this->isShortTodo($line),
-            ];
-            $this->laters[] = $later;
-        }
-    }
-
-    /**
      * Process a line that alreadt known to be a LATER item.
      *
      * @param string $line
