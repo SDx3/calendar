@@ -25,6 +25,7 @@
 namespace App;
 
 use Carbon\Carbon;
+use Carbon\Exceptions\InvalidFormatException;
 use DOMDocument;
 use DOMElement;
 use Eluceo\iCal\Domain\Entity\Calendar;
@@ -38,6 +39,10 @@ use Eluceo\iCal\Domain\ValueObject\UniqueIdentifier;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
+use League\CommonMark\Environment\Environment;
+use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
+use League\CommonMark\Extension\GithubFlavoredMarkdownExtension;
+use League\CommonMark\MarkdownConverter;
 use Monolog\Logger;
 
 /**
@@ -118,7 +123,6 @@ class TodoCalendarGenerator
                 // filter on extension:
                 $this->loadFromLocalFile($directory, $file);
             }
-
         }
     }
 
@@ -132,12 +136,43 @@ class TodoCalendarGenerator
         $fullName    = sprintf('%s/%s', $directory, $file);
         $fileContent = file_get_contents($fullName);
 
-        // loop over each line in markdown file
-        $lines = explode("\n", $fileContent);
-        foreach ($lines as $line) {
-            $this->processLine(trim($line), $shortName);
+        $this->parseFileContent($fileContent, $shortName);
+    }
+
+    /**
+     * @param string $fileContent
+     * @param string $shortName
+     */
+    private function parseFileContent(string $fileContent, string $shortName): void {
+        // Define your configuration, if needed
+        $config = [];
+
+        // Configure the Environment with all the CommonMark and GFM parsers/renderers
+        $environment = new Environment($config);
+        $environment->addExtension(new CommonMarkCoreExtension());
+        $environment->addExtension(new GithubFlavoredMarkdownExtension());
+
+        $converter = new MarkdownConverter($environment);
+        $html      = trim($converter->convertToHtml($fileContent));
+        if ('' === $html) {
+            return;
+        }
+        $dom = new DOMDocument();
+        $dom->loadHtml($html);
+        /** @var DOMElement $listItem */
+        foreach ($dom->getElementsByTagName('li') as $listItem) {
+            $text = $listItem->textContent;
+            if (str_starts_with($text, 'TODO ')) {
+                // loop over each line in markdown file
+                $this->processTodoLine(trim($text), $shortName);
+            }
+            if (str_starts_with($text, 'LATER ')) {
+                // loop over each line in markdown file
+                $this->processLaterLine(trim($text), $shortName);
+            }
         }
     }
+
 
     /**
      * @param string $message
@@ -229,7 +264,7 @@ class TodoCalendarGenerator
             'headers' => [],
         ];
         $res    = $client->request('PROPFIND', $url, $opts);
-        $string = (string) $res->getBody();
+        $string = (string)$res->getBody();
         $array  = $this->XMLtoArray($string);
         /** @var array $file */
         foreach ($array['d:multistatus']['d:response'] as $file) {
@@ -326,22 +361,167 @@ class TodoCalendarGenerator
             // get file content.
             $url         = sprintf('https://%s%s', $_ENV['NEXTCLOUD_HOST'], $filename);
             $fileRequest = $client->get($url, $opts);
-            $fileContent = (string) $fileRequest->getBody();
+            $fileContent = (string)$fileRequest->getBody();
 
-            // loop over each line in markdown file
-            $lines = explode("\n", $fileContent);
-            foreach ($lines as $line) {
-                $this->processLine(trim($line), $shortName);
-            }
+            // parse as html
+            $this->parseFileContent($fileContent, $shortName);
         }
     }
 
     /**
+     * Process a line that may or may not be a to do item.
+     *
      * @param string $line
      * @param string $shortName
      */
     private function processLine(string $line, string $shortName): void
     {
+        $pattern = '/\[\[\w* \d\d \w* [0-9]{4}\]\]/';
+
+        // if the line (whatever level) starts with "TODO"
+        if (str_starts_with($line, '- TODO ') && $this->hasDateRef($line) && str_contains($line, '#ready')) {
+            // do a lazy preg match
+            $matches = [];
+            preg_match($pattern, $line, $matches);
+            if (isset($matches[0])) {
+                $this->debug('TodoGenerator found a TODO with date!');
+                // if it's also a valid date, continue!
+                $dateStr = str_replace(['[', ']'], '', $matches[0]);
+                $dateObj = Carbon::createFromFormat('!l d F Y', $dateStr, 'Europe/Amsterdam');
+
+                // add it to array of to do's:
+                $todo          = [
+                    'page'  => str_replace('.md', '', $shortName),
+                    'todo'  => $this->filterTodoText(str_replace($matches[0], '', $line)),
+                    'date'  => $dateObj->toW3cString(),
+                    'short' => false,
+                ];
+                $this->todos[] = $todo;
+            }
+        }
+
+        // if it is a to do but no date ref! :(
+        if (str_starts_with($line, '- TODO ') && !$this->hasDateRef($line) && str_contains($line, '#ready')) {
+            $this->debug('TodoGenerator found a TODO without a date!');
+
+            // add it to array of to do's but keep the date NULL:
+            $todo          = [
+                'page'  => str_replace('.md', '', $shortName),
+                'todo'  => $this->filterTodoText($line),
+                'date'  => null,
+                'short' => $this->isShortTodo($line),
+            ];
+            $this->todos[] = $todo;
+        }
+
+        // if it starts with - LATER
+        // if the line (whatever level) starts with "TODO"
+        if (str_starts_with($line, '- LATER ')) {
+            $this->debug('TodoGenerator found a LATER');
+            $later          = [
+                'page'  => str_replace('.md', '', $shortName),
+                'later' => $this->filterTodoText($line),
+                'short' => $this->isShortTodo($line),
+            ];
+            $this->laters[] = $later;
+        }
+    }
+
+    /**
+     * Process a line that alreadt known to be a LATER item.
+     *
+     * @param string $line
+     * @param string $shortName
+     */
+    private function processLaterLine(string $line, string $shortName): void
+    {
+        $this->debug('TodoGenerator found a LATER');
+        $parts = explode("\n", $line);
+        if (1 === count($parts)) {
+            $later          = [
+                'page'  => str_replace('.md', '', $shortName),
+                'later' => $this->filterTodoText(substr($line, 5)),
+                'short' => false,
+            ];
+            $this->laters[] = $later;
+
+            return;
+        }
+        $later = [
+            'page'  => str_replace('.md', '', $shortName),
+            'later' => 'volgt',
+            'short' => false,
+        ];
+        foreach ($parts as $part) {
+            if (str_starts_with($part, 'LATER')) {
+                $later['later'] = $this->filterTodoText(substr($part, 5));
+            }
+        }
+        $this->laters[] = $later;
+    }
+
+    /**
+     * Process a line that alreadt known to be a to do item.
+     *
+     * @param string $line
+     * @param string $shortName
+     */
+    private function processTodoLine(string $line, string $shortName): void
+    {
+        $parts = explode("\n", $line);
+        if (1 === count($parts)) {
+            // its a basic todo with no date
+            // add it to array of to do's but keep the date NULL:
+
+            $todo          = [
+                'page'  => str_replace('.md', '', $shortName),
+                'todo'  => $this->filterTodoText(substr($line, 4)),
+                'date'  => null,
+                'short' => false,
+            ];
+            $this->todos[] = $todo;
+
+            return;
+        }
+        // its a line with all kinds of meta stuff:
+        $todo = [
+            'page'  => str_replace('.md', '', $shortName),
+            'todo'  => 'Not yet done!',
+            'date'  => null,
+            'short' => false,
+        ];
+        foreach ($parts as $part) {
+            if (str_starts_with($part, 'TODO')) {
+                $todo['todo'] = $this->filterTodoText(substr($part, 4));
+            }
+            if (str_starts_with($part, 'SCHEDULED')) {
+                $dateString = str_replace(['SCHEDULED: ', '<', '>'], '', $part);
+                try {
+                    $dateObject = Carbon::createFromFormat('!Y-m-d D', $dateString, 'Europe/Amsterdam');
+                } catch (InvalidFormatException $e) {
+                    echo 'Could not parse: "' . htmlentities($dateString) . '"!';
+                    exit;
+                }
+                $todo['date'] = $dateObject->toW3cString();
+            }
+
+            // same but for deadline:
+            if (str_starts_with($part, 'DEADLINE')) {
+                $dateString = str_replace(['DEADLINE: ', '<', '>'], '', $part);
+                try {
+                    $dateObject = Carbon::createFromFormat('!Y-m-d D', $dateString, 'Europe/Amsterdam');
+                } catch (InvalidFormatException $e) {
+                    echo 'Could not parse: "' . htmlentities($dateString) . '"!';
+                    exit;
+                }
+                $todo['date'] = $dateObject->toW3cString();
+            }
+        }
+        $this->todos[] = $todo;
+
+        return;
+
+
         $pattern = '/\[\[\w* \d\d \w* [0-9]{4}\]\]/';
 
         // if the line (whatever level) starts with "TODO"
@@ -460,7 +640,7 @@ class TodoCalendarGenerator
 
                 // fix description:
                 $appointment['todo'] = trim(str_replace(sprintf('%s:', $appointment['label']), '', $appointment['todo']));
-                if (0 === strlen((string) $appointment['label'])) {
+                if (0 === strlen((string)$appointment['label'])) {
                     $appointment['label'] = '!';
                 }
                 $summary = sprintf('[%s] [%s] %s', $appointment['label'], $appointment['page'], $appointment['todo']);
@@ -636,7 +816,7 @@ class TodoCalendarGenerator
      */
     private function renderDatelessTodos(array $appointments): string
     {
-        $html = '<h2>TODO\'s with no date</h2><ol>';
+        $html = sprintf('<h2>TODO\'s with no date <small>(%d)</small></h2><ol>', count($appointments));
         /** @var array $appointment */
         foreach ($appointments as $appointment) {
             $html .= sprintf('<li>%s</li>', $this->colorizeTodo($appointment));
@@ -649,6 +829,7 @@ class TodoCalendarGenerator
 
     /**
      * @param array $appointment
+     *
      * @return string
      */
     private function colorizeTodo(array $appointment): string
@@ -662,6 +843,10 @@ class TodoCalendarGenerator
             'Meet'      => 'bg-info',
             'Discuss'   => 'bg-info',
             'Track'     => 'bg-warning text-dark',
+            'Go-to'     => 'bg-primary',
+            'Bring'     => 'bg-primary',
+            'Get'       => 'bg-primary',
+            'Share'     => 'bg-primary',
         ];
         $foundLabel = $this->getTypeLabel($todoText);
         if (null !== $foundLabel) {
@@ -676,7 +861,9 @@ class TodoCalendarGenerator
             $typeLabel = '<span class="badge bg-danger">!!</span>';
         }
 
-        return trim(sprintf('<span class="badge bg-secondary">%s</span> <span style="color:%s">%s</span> %s', $appointment['page'], $color, $typeLabel, $todoText));
+        return trim(
+            sprintf('<span class="badge bg-secondary">%s</span> <span style="color:%s">%s</span> %s', $appointment['page'], $color, $typeLabel, $todoText)
+        );
     }
 
     /**
@@ -687,7 +874,7 @@ class TodoCalendarGenerator
      */
     private function renderTodos(array $appointments, Carbon $date): string
     {
-        $html = sprintf('<h2>%s</h2><ol>', str_replace('  ', ' ', $date->formatLocalized('%A %e %B %Y')));
+        $html = sprintf('<h2>%s <small>(%d)</small></h2><ol>', str_replace('  ', ' ', $date->formatLocalized('%A %e %B %Y')), count($appointments));
         /** @var array $appointment */
         foreach ($appointments as $appointment) {
             $html .= sprintf('<li>%s</li>', $this->colorizeTodo($appointment));
@@ -704,7 +891,7 @@ class TodoCalendarGenerator
      */
     private function getTypeLabel(string $appointment): ?string
     {
-        $todoTypes = ['Ensure', 'Follow up', 'Meet', 'Discuss', 'Track'];
+        $todoTypes = ['Ensure', 'Follow up', 'Meet', 'Discuss', 'Track', 'Go-to', 'Bring', 'Get', 'Share'];
         /** @var string $search */
         foreach ($todoTypes as $todoType) {
             $search = sprintf('%s:', $todoType);
@@ -730,6 +917,7 @@ class TodoCalendarGenerator
             $html .= sprintf('<li>%s</li>', $this->colorizeTodo($later));
         }
         $html .= '</ol>';
+
         return $html;
     }
 
