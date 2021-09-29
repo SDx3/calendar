@@ -143,7 +143,8 @@ class TodoCalendarGenerator
      * @param string $fileContent
      * @param string $shortName
      */
-    private function parseFileContent(string $fileContent, string $shortName): void {
+    private function parseFileContent(string $fileContent, string $shortName): void
+    {
         // Define your configuration, if needed
         $config = [];
 
@@ -363,8 +364,10 @@ class TodoCalendarGenerator
             $fileRequest = $client->get($url, $opts);
             $fileContent = (string)$fileRequest->getBody();
 
-            // parse as html
-            $this->parseFileContent($fileContent, $shortName);
+            if (str_contains($fileContent, 'TODO')) {
+                // parse as html
+                $this->parseFileContent($fileContent, $shortName);
+            }
         }
     }
 
