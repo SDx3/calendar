@@ -265,7 +265,7 @@ class TodoCalendarGenerator
             'headers' => [],
         ];
         $res    = $client->request('PROPFIND', $url, $opts);
-        $string = (string)$res->getBody();
+        $string = (string) $res->getBody();
         $array  = $this->XMLtoArray($string);
         /** @var array $file */
         foreach ($array['d:multistatus']['d:response'] as $file) {
@@ -361,7 +361,7 @@ class TodoCalendarGenerator
             // get file content.
             $url         = sprintf('https://%s%s', $_ENV['NEXTCLOUD_HOST'], $filename);
             $fileRequest = $client->get($url, $opts);
-            $fileContent = (string)$fileRequest->getBody();
+            $fileContent = (string) $fileRequest->getBody();
 
             if (str_contains($fileContent, 'TODO')) {
                 $this->debug(sprintf('TodoGenerator now loading from markdown file %s', $file['d:href']));
@@ -584,7 +584,7 @@ class TodoCalendarGenerator
 
                 // fix description:
                 $appointment['todo'] = trim(str_replace(sprintf('%s:', $appointment['label']), '', $appointment['todo']));
-                if (0 === strlen((string)$appointment['label'])) {
+                if (0 === strlen((string) $appointment['label'])) {
                     $appointment['label'] = '!';
                 }
                 $summary = sprintf('[%s] [%s] %s', $appointment['label'], $appointment['page'], $appointment['todo']);
@@ -818,7 +818,13 @@ class TodoCalendarGenerator
      */
     private function renderTodos(array $appointments, Carbon $date): string
     {
-        $html = sprintf('<h2>%s <small>(%d)</small></h2><ol>', str_replace('  ', ' ', $date->formatLocalized('%A %e %B %Y')), count($appointments));
+        $count = count($appointments);
+        $color = '#000;';
+        if ($count > 10) {
+            $color = '#a00';
+        }
+
+        $html = sprintf('<h2 style="color:%s;">%s <small>(%d)</small></h2><ol>', $color, str_replace('  ', ' ', $date->formatLocalized('%A %e %B %Y')), $count);
         /** @var array $appointment */
         foreach ($appointments as $appointment) {
             $html .= sprintf('<li>%s</li>', $this->colorizeTodo($appointment));
