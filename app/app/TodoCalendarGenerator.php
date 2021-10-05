@@ -414,7 +414,7 @@ class TodoCalendarGenerator
     {
         $parts = explode("\n", $line);
         if (1 === count($parts)) {
-            // its a basic todo with no date
+            // its a basic to do with no date
             // add it to array of to do's but keep the date NULL:
 
             $todo          = [
@@ -440,6 +440,11 @@ class TodoCalendarGenerator
             }
             if (str_starts_with($part, 'SCHEDULED')) {
                 $dateString = str_replace(['SCHEDULED: ', '<', '>'], '', $part);
+                if (str_contains($dateString, '++')) {
+                    $this->parseRepeater($todo, $dateString);
+                    return;
+                }
+
                 try {
                     $dateObject = Carbon::createFromFormat('!Y-m-d D', $dateString, 'Europe/Amsterdam');
                 } catch (InvalidFormatException $e) {
@@ -869,6 +874,42 @@ class TodoCalendarGenerator
         $html .= '</ol>';
 
         return $html;
+    }
+
+    /**
+     * @param array  $todo
+     * @param string $dateString
+     */
+    private function parseRepeater(array $todo, string $dateString): void
+    {
+        $today = new Carbon;
+        $end   = new Carbon;
+        $end->addMonths(3);
+
+        // lazy split to get repeater in place
+        $parts = explode('++', $dateString);
+
+        // first date is this one:
+        $dateObject = Carbon::createFromFormat('!Y-m-d D', trim($parts[0]), 'Europe/Amsterdam');
+
+        // repeater is '1w' or '2d' or whatever.
+        switch ($parts[1][1]) {
+            default:
+                die(sprintf('Cant handle period "%s"', $parts[1][1]));
+            case 'w':
+                $period = (int) $parts[1][0];
+                $func   = 'addWeeks';
+        }
+        $start = clone $dateObject;
+        while ($start <= $end) {
+            $start->$func($period);
+            if ($start >= $today) {
+                // add to do!
+                $currentTodo         = $todo;
+                $currentTodo['date'] = $start->toW3cString();
+                $this->todos[]       = $currentTodo;
+            }
+        }
     }
 
 }
