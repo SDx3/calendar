@@ -265,7 +265,7 @@ class TodoCalendarGenerator
             'headers' => [],
         ];
         $res    = $client->request('PROPFIND', $url, $opts);
-        $string = (string) $res->getBody();
+        $string = (string)$res->getBody();
         $array  = $this->XMLtoArray($string);
         /** @var array $file */
         foreach ($array['d:multistatus']['d:response'] as $file) {
@@ -361,7 +361,7 @@ class TodoCalendarGenerator
             // get file content.
             $url         = sprintf('https://%s%s', $_ENV['NEXTCLOUD_HOST'], $filename);
             $fileRequest = $client->get($url, $opts);
-            $fileContent = (string) $fileRequest->getBody();
+            $fileContent = (string)$fileRequest->getBody();
 
             if (str_contains($fileContent, 'TODO')) {
                 $this->debug(sprintf('TodoGenerator now loading from markdown file %s', $file['d:href']));
@@ -441,7 +441,13 @@ class TodoCalendarGenerator
             if (str_starts_with($part, 'SCHEDULED')) {
                 $dateString = str_replace(['SCHEDULED: ', '<', '>'], '', $part);
                 if (str_contains($dateString, '++')) {
-                    $this->parseRepeater($todo, $dateString);
+                    $this->parseRepeater($todo, $dateString, '++');
+
+                    return;
+                }
+                if (str_contains($dateString, '.+')) {
+                    $this->parseRepeater($todo, $dateString, '.+');
+
                     return;
                 }
 
@@ -589,7 +595,7 @@ class TodoCalendarGenerator
 
                 // fix description:
                 $appointment['todo'] = trim(str_replace(sprintf('%s:', $appointment['label']), '', $appointment['todo']));
-                if (0 === strlen((string) $appointment['label'])) {
+                if (0 === strlen((string)$appointment['label'])) {
                     $appointment['label'] = '!';
                 }
                 $summary = sprintf('[%s] [%s] %s', $appointment['label'], $appointment['page'], $appointment['todo']);
@@ -877,35 +883,40 @@ class TodoCalendarGenerator
     }
 
     /**
-     * @param array  $todo
+     * @param array  $array
      * @param string $dateString
+     * @param string $separator
      */
-    private function parseRepeater(array $todo, string $dateString): void
+    private function parseRepeater(array $array, string $dateString, string $separator): void
     {
         $today = new Carbon;
         $end   = new Carbon;
         $end->addMonths(3);
 
         // lazy split to get repeater in place
-        $parts = explode('++', $dateString);
+        $parts = explode($separator, $dateString);
 
         // first date is this one:
         $dateObject = Carbon::createFromFormat('!Y-m-d D', trim($parts[0]), 'Europe/Amsterdam');
+        $period     = (int)$parts[1][0];
 
         // repeater is '1w' or '2d' or whatever.
         switch ($parts[1][1]) {
             default:
                 die(sprintf('Cant handle period "%s"', $parts[1][1]));
             case 'w':
-                $period = (int) $parts[1][0];
-                $func   = 'addWeeks';
+                $func = 'addWeeks';
+                break;
+            case 'm':
+                $func = 'addMonths';
+                break;
         }
         $start = clone $dateObject;
         while ($start <= $end) {
             $start->$func($period);
             if ($start >= $today) {
                 // add to do!
-                $currentTodo         = $todo;
+                $currentTodo         = $array;
                 $currentTodo['date'] = $start->toW3cString();
                 $this->todos[]       = $currentTodo;
             }
