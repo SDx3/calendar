@@ -109,6 +109,26 @@ class TodoCalendarGenerator
     }
 
     /**
+     * @param string $line
+     *
+     * @return int
+     */
+    private function getPriority(string $line): int
+    {
+        if (str_contains($line, '[#A]')) {
+            return 10;
+        }
+        if (str_contains($line, '[#B]')) {
+            return 20;
+        }
+        if (str_contains($line, '[#C]')) {
+            return 30;
+        }
+
+        return 100;
+    }
+
+    /**
      * @param string $directory
      */
     private function loadFromLocalDirectory(string $directory): void
@@ -383,18 +403,20 @@ class TodoCalendarGenerator
         $parts = explode("\n", $line);
         if (1 === count($parts)) {
             $later          = [
-                'page'  => str_replace('.md', '', $shortName),
-                'later' => $this->filterTodoText(substr($line, 5)),
-                'short' => false,
+                'page'     => str_replace('.md', '', $shortName),
+                'later'    => $this->filterTodoText(substr($line, 5)),
+                'short'    => false,
+                'priority' => $this->getPriority($line),
             ];
             $this->laters[] = $later;
 
             return;
         }
         $later = [
-            'page'  => str_replace('.md', '', $shortName),
-            'later' => 'volgt',
-            'short' => false,
+            'page'     => str_replace('.md', '', $shortName),
+            'later'    => 'volgt',
+            'short'    => false,
+            'priority' => $this->getPriority($line),
         ];
         foreach ($parts as $part) {
             if (str_starts_with($part, 'LATER')) {
@@ -418,10 +440,11 @@ class TodoCalendarGenerator
             // add it to array of to do's but keep the date NULL:
 
             $todo          = [
-                'page'  => str_replace('.md', '', $shortName),
-                'todo'  => $this->filterTodoText(substr($line, 4)),
-                'date'  => null,
-                'short' => false,
+                'page'     => str_replace('.md', '', $shortName),
+                'todo'     => $this->filterTodoText(substr($line, 4)),
+                'date'     => null,
+                'short'    => false,
+                'priority' => $this->getPriority($line),
             ];
             $this->todos[] = $todo;
 
@@ -429,10 +452,11 @@ class TodoCalendarGenerator
         }
         // its a line with all kinds of meta stuff:
         $todo = [
-            'page'  => str_replace('.md', '', $shortName),
-            'todo'  => 'Not yet done!',
-            'date'  => null,
-            'short' => false,
+            'page'     => str_replace('.md', '', $shortName),
+            'todo'     => 'Not yet done!',
+            'date'     => null,
+            'short'    => false,
+            'priority' => $this->getPriority($line),
         ];
         foreach ($parts as $part) {
             if (str_starts_with($part, 'TODO')) {
@@ -473,59 +497,6 @@ class TodoCalendarGenerator
             }
         }
         $this->todos[] = $todo;
-
-        return;
-
-
-        $pattern = '/\[\[\w* \d\d \w* [0-9]{4}\]\]/';
-
-        // if the line (whatever level) starts with "TODO"
-        if (str_starts_with($line, '- TODO ') && $this->hasDateRef($line) && str_contains($line, '#ready')) {
-            // do a lazy preg match
-            $matches = [];
-            preg_match($pattern, $line, $matches);
-            if (isset($matches[0])) {
-                $this->debug('TodoGenerator found a TODO with date!');
-                // if it's also a valid date, continue!
-                $dateStr = str_replace(['[', ']'], '', $matches[0]);
-                $dateObj = Carbon::createFromFormat('!l d F Y', $dateStr, 'Europe/Amsterdam');
-
-                // add it to array of to do's:
-                $todo          = [
-                    'page'  => str_replace('.md', '', $shortName),
-                    'todo'  => $this->filterTodoText(str_replace($matches[0], '', $line)),
-                    'date'  => $dateObj->toW3cString(),
-                    'short' => false,
-                ];
-                $this->todos[] = $todo;
-            }
-        }
-
-        // if it is a to do but no date ref! :(
-        if (str_starts_with($line, '- TODO ') && !$this->hasDateRef($line) && str_contains($line, '#ready')) {
-            $this->debug('TodoGenerator found a TODO without a date!');
-
-            // add it to array of to do's but keep the date NULL:
-            $todo          = [
-                'page'  => str_replace('.md', '', $shortName),
-                'todo'  => $this->filterTodoText($line),
-                'date'  => null,
-                'short' => $this->isShortTodo($line),
-            ];
-            $this->todos[] = $todo;
-        }
-
-        // if it starts with - LATER
-        // if the line (whatever level) starts with "TODO"
-        if (str_starts_with($line, '- LATER ')) {
-            $this->debug('TodoGenerator found a LATER');
-            $later          = [
-                'page'  => str_replace('.md', '', $shortName),
-                'later' => $this->filterTodoText($line),
-                'short' => $this->isShortTodo($line),
-            ];
-            $this->laters[] = $later;
-        }
     }
 
     /**
@@ -677,13 +648,26 @@ class TodoCalendarGenerator
 
             $newSet[$dateStr]   = $newSet[$dateStr] ?? [];
             $newSet[$dateStr][] = [
-                'full' => sprintf('<span class="badge bg-secondary">%s</span> %s', $item['page'], $item['todo']),
-                'page' => $item['page'],
-                'todo' => $item['todo'],
-
+                'full'     => sprintf('<span class="badge bg-secondary">%s</span> %s', $item['page'], $item['todo']),
+                'page'     => $item['page'],
+                'todo'     => $item['todo'],
+                'priority' => $item['priority'],
             ];
         }
         ksort($newSet);
+
+        // TODO im sure this can be done more efficiently:
+        foreach ($newSet as $key => $array) {
+            // first by page title
+            usort($array, function (array $a, array $b) {
+                return strcmp($a['page'], $b['page']);
+            });
+
+            usort($array, function (array $a, array $b) {
+                return $a['priority'] - $b['priority'];
+            });
+            $newSet[$key] = $array;
+        }
 
         return $newSet;
     }
@@ -730,7 +714,7 @@ class TodoCalendarGenerator
      */
     private function filterTodoText(string $line): string
     {
-        $search  = ['- TODO', '#ready', '#nodate', '#5m', '- LATER'];
+        $search  = ['- TODO', '#ready', '#nodate', '#5m', '- LATER', '[#A]', '[#A] ', '[#B]', '[#B] ', '[#C]', '[#C] '];
         $replace = '';
 
         return trim(str_replace($search, $replace, $line));
@@ -815,9 +799,22 @@ class TodoCalendarGenerator
         if ('' === $typeLabel) {
             $typeLabel = '<span class="badge bg-danger">!!</span>';
         }
+        $priority = '';
+        if (10 === $appointment['priority']) {
+            $priority = '<span class="badge bg-danger">A</span> ';
+        }
+        if (20 === $appointment['priority']) {
+            $priority = '<span class="badge bg-warning text-dark">B</span> ';
+        }
+        if (30 === $appointment['priority']) {
+            $priority = '<span class="badge bg-success">C</span> ';
+        }
 
         return trim(
-            sprintf('<span class="badge bg-secondary">%s</span> <span style="color:%s">%s</span> %s', $appointment['page'], $color, $typeLabel, $todoText)
+            sprintf(
+                '%s<span class="badge bg-secondary">%s</span> <span style="color:%s">%s</span> %s', $priority, $appointment['page'], $color, $typeLabel,
+                $todoText
+            )
         );
     }
 
