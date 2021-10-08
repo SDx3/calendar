@@ -541,6 +541,7 @@ class TodoCalendarGenerator
     {
         $grouped = $this->groupItemsCalendar();
 
+
         // loop set and create calendar items
         $calendar = new Calendar;
         $timezone = new TimeZone($_ENV['TZ']);
@@ -549,17 +550,49 @@ class TodoCalendarGenerator
         foreach ($grouped as $dateString => $appointments) {
             $date = Carbon::createFromFormat('Y-m-d', $dateString, 'Europe/Amsterdam');
 
-            $appointmentStart = clone $date;
-            $appointmentEnd   = clone $date;
-            $appointmentStart->setTime(6, 0);
-            $appointmentEnd->setTime(6, 30);
+            // make a block of times for the appointments:
+            $prioritiesTimes = [
+                100 => [
+                    'start'=> clone $date,
+                    'end' => clone $date,
+                ],
+                10 => [
+                    'start'=> clone $date,
+                    'end' => clone $date,
+                ],
+                20 => [
+                    'start'=> clone $date,
+                    'end' => clone $date,
+                ],
+                30 => [
+                    'start'=> clone $date,
+                    'end' => clone $date,
+                ],
+            ];
+            // set the correct start times:
+            $prioritiesTimes[10]['start']->setTime(6,0);
+            $prioritiesTimes[10]['end']->setTime(6,30);
+
+            $prioritiesTimes[20]['start']->setTime(12,0);
+            $prioritiesTimes[20]['end']->setTime(12,30);
+
+            $prioritiesTimes[30]['start']->setTime(15,0);
+            $prioritiesTimes[30]['end']->setTime(15,30);
+
+            $prioritiesTimes[100]['start']->setTime(17,0);
+            $prioritiesTimes[100]['end']->setTime(17,30);
 
             /** @var array $appointment */
             foreach ($appointments as $appointment) {
+                // correct time:
+                $priority  =$appointment['priority'];
+
+
+
                 // stacked date and time:
                 $string     = substr(hash('sha256', sprintf('%s-%s', $date->format('Y-m-d'), $appointment['todo'])), 0, 16);
                 $uid        = new UniqueIdentifier($string);
-                $occurrence = new TimeSpan(new DateTime($appointmentStart->toDateTime(), true), new DateTime($appointmentEnd->toDateTime(), true));
+                $occurrence = new TimeSpan(new DateTime($prioritiesTimes[$priority]['start']->toDateTime(), true), new DateTime($prioritiesTimes[$priority]['end']->toDateTime(), true));
                 $organizer  = new Organizer(
                     new EmailAddress($_ENV['ORGANIZER_MAIL']), $_ENV['ORGANIZER_NAME'], null, new EmailAddress($_ENV['ORGANIZER_MAIL'])
                 );
@@ -572,8 +605,8 @@ class TodoCalendarGenerator
                 $summary = sprintf('[%s] [%s] %s', $appointment['label'], $appointment['page'], $appointment['todo']);
 
                 // adjust time for the next one:
-                $appointmentStart->addMinutes(30);
-                $appointmentEnd->addMinutes(30);
+                $prioritiesTimes[$priority]['start']->addMinutes(30);
+                $prioritiesTimes[$priority]['end']->addMinutes(30);
 
                 $vEvent = new Event($uid);
                 $vEvent->setOrganizer($organizer)
@@ -691,7 +724,12 @@ class TodoCalendarGenerator
             $dateStr = $date->format('Y-m-d', 'Europe/Amsterdam');
 
             $newSet[$dateStr]   = $newSet[$dateStr] ?? [];
-            $newSet[$dateStr][] = ['page' => $item['page'], 'todo' => $item['todo'], 'label' => $this->getTypeLabel($item['todo'])];
+            $newSet[$dateStr][] = [
+                'page'     => $item['page'],
+                'todo'     => $item['todo'],
+                'label'    => $this->getTypeLabel($item['todo']),
+                'priority' => $item['priority'],
+            ];
         }
         ksort($newSet);
 
