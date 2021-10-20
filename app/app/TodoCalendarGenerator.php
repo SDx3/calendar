@@ -948,13 +948,13 @@ class TodoCalendarGenerator
         }
         $start = clone $dateObject;
         while ($start <= $end) {
-            $start->$func($period);
             if ($start >= $today) {
                 // add to do!
                 $currentTodo         = $array;
                 $currentTodo['date'] = $start->toW3cString();
                 $this->todos[]       = $currentTodo;
             }
+            $start->$func($period);
         }
     }
 
