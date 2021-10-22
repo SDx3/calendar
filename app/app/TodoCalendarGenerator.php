@@ -553,46 +553,47 @@ class TodoCalendarGenerator
             // make a block of times for the appointments:
             $prioritiesTimes = [
                 100 => [
-                    'start'=> clone $date,
-                    'end' => clone $date,
+                    'start' => clone $date,
+                    'end'   => clone $date,
                 ],
-                10 => [
-                    'start'=> clone $date,
-                    'end' => clone $date,
+                10  => [
+                    'start' => clone $date,
+                    'end'   => clone $date,
                 ],
-                20 => [
-                    'start'=> clone $date,
-                    'end' => clone $date,
+                20  => [
+                    'start' => clone $date,
+                    'end'   => clone $date,
                 ],
-                30 => [
-                    'start'=> clone $date,
-                    'end' => clone $date,
+                30  => [
+                    'start' => clone $date,
+                    'end'   => clone $date,
                 ],
             ];
             // set the correct start times:
-            $prioritiesTimes[10]['start']->setTime(6,0);
-            $prioritiesTimes[10]['end']->setTime(6,30);
+            $prioritiesTimes[10]['start']->setTime(6, 0);
+            $prioritiesTimes[10]['end']->setTime(6, 30);
 
-            $prioritiesTimes[20]['start']->setTime(12,0);
-            $prioritiesTimes[20]['end']->setTime(12,30);
+            $prioritiesTimes[20]['start']->setTime(12, 0);
+            $prioritiesTimes[20]['end']->setTime(12, 30);
 
-            $prioritiesTimes[30]['start']->setTime(15,0);
-            $prioritiesTimes[30]['end']->setTime(15,30);
+            $prioritiesTimes[30]['start']->setTime(15, 0);
+            $prioritiesTimes[30]['end']->setTime(15, 30);
 
-            $prioritiesTimes[100]['start']->setTime(17,0);
-            $prioritiesTimes[100]['end']->setTime(17,30);
+            $prioritiesTimes[100]['start']->setTime(17, 0);
+            $prioritiesTimes[100]['end']->setTime(17, 30);
 
             /** @var array $appointment */
             foreach ($appointments as $appointment) {
                 // correct time:
-                $priority  =$appointment['priority'];
-
+                $priority = $appointment['priority'];
 
 
                 // stacked date and time:
                 $string     = substr(hash('sha256', sprintf('%s-%s', $date->format('Y-m-d'), $appointment['todo'])), 0, 16);
                 $uid        = new UniqueIdentifier($string);
-                $occurrence = new TimeSpan(new DateTime($prioritiesTimes[$priority]['start']->toDateTime(), true), new DateTime($prioritiesTimes[$priority]['end']->toDateTime(), true));
+                $occurrence = new TimeSpan(
+                    new DateTime($prioritiesTimes[$priority]['start']->toDateTime(), true), new DateTime($prioritiesTimes[$priority]['end']->toDateTime(), true)
+                );
                 $organizer  = new Organizer(
                     new EmailAddress($_ENV['ORGANIZER_MAIL']), $_ENV['ORGANIZER_NAME'], null, new EmailAddress($_ENV['ORGANIZER_MAIL'])
                 );
@@ -670,12 +671,12 @@ class TodoCalendarGenerator
                 $dateStr = '0000-00-00';
             }
             if (null !== $item['date']) {
-                $date    = Carbon::createFromFormat(Carbon::W3C, $item['date'], 'Europe/Amsterdam');
-                $dateStr = $date->format('Y-m-d', 'Europe/Amsterdam');
+                $date    = Carbon::createFromFormat(Carbon::W3C, $item['date'], $_ENV['TZ']);
+                $dateStr = $date->format('Y-m-d', $_ENV['TZ']);
             }
 
             // separate list of short to do's.
-            if (isset($item['short']) && $item['short']) {
+            if (isset($item['short']) && true === $item['short']) {
                 $dateStr = '0000-00-00-short';
             }
 
@@ -924,15 +925,15 @@ class TodoCalendarGenerator
      */
     private function parseRepeater(array $array, string $dateString, string $separator): void
     {
-        $today = new Carbon;
-        $end   = new Carbon;
+        $today = Carbon::now($_ENV['TZ'])->startOfDay();
+        $end   = Carbon::now($_ENV['TZ']);
         $end->addMonths(3);
 
         // lazy split to get repeater in place
         $parts = explode($separator, $dateString);
 
         // first date is this one:
-        $dateObject = Carbon::createFromFormat('!Y-m-d D', trim($parts[0]), 'Europe/Amsterdam');
+        $dateObject = Carbon::createFromFormat('!Y-m-d D', trim($parts[0]), $_ENV['TZ']);
         $period     = (int)$parts[1][0];
 
         // repeater is '1w' or '2d' or whatever.
@@ -948,7 +949,9 @@ class TodoCalendarGenerator
         }
         $start = clone $dateObject;
         while ($start <= $end) {
+            //echo 'Start is now ' . $start->toRfc2822String().'<br>';
             if ($start >= $today) {
+                //echo '<strong>Start is bigger</strong> than today! ' . $today->toRfc2822String().'<br>';
                 // add to do!
                 $currentTodo         = $array;
                 $currentTodo['date'] = $start->toW3cString();
