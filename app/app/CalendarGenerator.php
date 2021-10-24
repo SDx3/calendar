@@ -98,15 +98,26 @@ class CalendarGenerator
      */
     private function parseJson(): void
     {
-        $file = sprintf('%s%s%s', $this->directory, DIRECTORY_SEPARATOR, 'appointments.json');
-        $json = [];
-        if (file_exists($file)) {
-            $json = json_decode(file_get_contents($file), true, 8, JSON_THROW_ON_ERROR);
-        }
+        // loop directory:
+        $list          = scandir($this->directory);
+        $json          = [];
         $validCalendar = false;
-        foreach ($json as $appointment) {
-            if ($this->calendarName === $appointment['calendar']) {
-                $validCalendar = true;
+        foreach ($list as $file) {
+            if ('json' === substr($file, -4)) {
+                $fullFile = sprintf('%s%s%s', $this->directory, DIRECTORY_SEPARATOR, $file);
+                $current = [];
+                // read file
+                if (file_exists($fullFile)) {
+                    $current = json_decode(file_get_contents($fullFile), true, 8, JSON_THROW_ON_ERROR);
+                }
+
+                // makes calendar valid?
+                foreach ($current as $appointment) {
+                    if ($this->calendarName === $appointment['calendar']) {
+                        $validCalendar = true;
+                    }
+                }
+                $json = array_merge($json, $current);
             }
         }
         // exit if no such calendar exists
@@ -145,6 +156,12 @@ class CalendarGenerator
         foreach ($this->appointments as $appointment) {
             if ($this->matchesDatePattern($date, $appointment['pattern'])) {
                 $this->addAppointment($date, $appointment);
+            }
+            if(0 === $appointment['pattern']) {
+                $current = Carbon::createFromFormat('Y-m-d', $appointment['date'], $_ENV['TZ']);
+                if($current->isSameDay($date)) {
+                    $this->addAppointment($date, $appointment);
+                }
             }
         }
     }
@@ -250,6 +267,9 @@ class CalendarGenerator
             case 16:
                 // is a thursday and is a valid moment for coffee slot
                 return $date->isThursday() && 0 !== $this->coffeeSlot($date);
+            case 17:
+
+                break;
         }
     }
 
