@@ -324,30 +324,6 @@ class CalendarGenerator
     }
 
     /**
-     * @throws JsonException
-     */
-    private function parseJson(): void
-    {
-        $file = sprintf('%s%s%s', $this->directory, DIRECTORY_SEPARATOR, 'appointments.json');
-        $json = [];
-        if (file_exists($file)) {
-            $json = json_decode(file_get_contents($file), true, 8, JSON_THROW_ON_ERROR);
-        }
-        $validCalendar = false;
-        foreach ($json as $appointment) {
-            if ($this->calendarName === $appointment['calendar']) {
-                $validCalendar = true;
-            }
-        }
-        // exit if no such calendar exists
-        if (false === $validCalendar) {
-            echo 'NOK';
-            exit;
-        }
-        $this->appointments = $json;
-    }
-
-    /**
      * @param Carbon $date
      */
     private function processAppointments(Carbon $date): void
