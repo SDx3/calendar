@@ -6,7 +6,6 @@ use Eluceo\iCal\Domain\Entity\Calendar;
 use Eluceo\iCal\Presentation\Component;
 use Eluceo\iCal\Presentation\Component\Property;
 use Eluceo\iCal\Presentation\Component\Property\Value\TextValue;
-use Eluceo\iCal\Presentation\Factory\CalendarFactory;
 use Eluceo\iCal\Presentation\Factory\EventFactory;
 use Eluceo\iCal\Presentation\Factory\TimeZoneFactory;
 use Generator;
@@ -17,7 +16,7 @@ use Generator;
  */
 class RefreshFactory
 {
-    private EventFactory $eventFactory;
+    private EventFactory    $eventFactory;
     private TimeZoneFactory $timeZoneFactory;
 
     /**
@@ -26,7 +25,7 @@ class RefreshFactory
      */
     public function __construct(?EventFactory $eventFactory = null, ?TimeZoneFactory $timeZoneFactory = null)
     {
-        $this->eventFactory = $eventFactory ?? new EventFactory();
+        $this->eventFactory    = $eventFactory ?? new EventFactory();
         $this->timeZoneFactory = $timeZoneFactory ?? new TimeZoneFactory();
     }
 

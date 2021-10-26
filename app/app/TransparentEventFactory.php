@@ -41,8 +41,7 @@ class TransparentEventFactory extends EventFactory
     {
         $component = parent::createComponent($event);
         $component = $component->withProperty(new Property('TRANSP', new TextValue('TRANSPARENT')));
-        $component = $component->withProperty(new Property('class', new TextValue('PUBLIC')));
 
-        return $component;
+        return $component->withProperty(new Property('class', new TextValue('PUBLIC')));
     }
 }

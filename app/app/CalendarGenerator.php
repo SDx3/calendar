@@ -44,20 +44,23 @@ use JsonException;
  */
 class CalendarGenerator
 {
+    use ParseTodos;
+
     public const VERSION = '4.1';
-    private string   $calendarName;
-    private string   $directory;
     private array    $appointments;
-    private Carbon   $start;
-    private Carbon   $end;
-    private array    $timeSlots;
-    private array    $months;
-    private array    $days;
     private Calendar $calendar;
+    private string   $calendarName;
+    private array    $days;
+    private string   $directory;
+    private Carbon   $end;
+    private array    $months;
+    private Carbon   $start;
+    private array    $timeSlots;
 
     /**
      * @param string $directory
      * @param string $calendar
+     *
      * @throws JsonException
      */
     public function __construct(string $directory, string $calendar)
@@ -94,30 +97,6 @@ class CalendarGenerator
     }
 
     /**
-     * @throws JsonException
-     */
-    private function parseJson(): void
-    {
-        $file = sprintf('%s%s%s', $this->directory, DIRECTORY_SEPARATOR, 'appointments.json');
-        $json = [];
-        if (file_exists($file)) {
-            $json = json_decode(file_get_contents($file), true, 8, JSON_THROW_ON_ERROR);
-        }
-        $validCalendar = false;
-        foreach ($json as $appointment) {
-            if ($this->calendarName === $appointment['calendar']) {
-                $validCalendar = true;
-            }
-        }
-        // exit if no such calendar exists
-        if (false === $validCalendar) {
-            echo 'NOK';
-            exit;
-        }
-        $this->appointments = $json;
-    }
-
-    /**
      * @return string
      */
     public function generate(): string
@@ -133,20 +112,24 @@ class CalendarGenerator
         }
         // Transform domain entity into an iCalendar component
         $componentFactory = new CalendarFactory(new TransparentEventFactory);
-        return (string) $componentFactory->createCalendar($this->calendar);
+
+        return (string)$componentFactory->createCalendar($this->calendar);
     }
 
     /**
-     * @param Carbon $date
+     * @param Carbon $end
      */
-    private function processAppointments(Carbon $date): void
+    public function setEnd(Carbon $end): void
     {
-        /** @var array $appointment */
-        foreach ($this->appointments as $appointment) {
-            if ($this->matchesDatePattern($date, $appointment['pattern'])) {
-                $this->addAppointment($date, $appointment);
-            }
-        }
+        $this->end = $end;
+    }
+
+    /**
+     * @param Carbon $start
+     */
+    public function setStart(Carbon $start): void
+    {
+        $this->start = $start;
     }
 
     /**
@@ -200,7 +183,54 @@ class CalendarGenerator
 
     /**
      * @param Carbon $date
+     *
+     * @return int
+     */
+    private function coffeeSlot(Carbon $date): int
+    {
+        $weekNr = $date->isoWeek - 1;
+        $slot   = 0;
+        if ($date->isMonday()) {
+            // slot X op maandag (1,2,3,4).
+            $slot = ($weekNr % 4) + 1;
+        }
+
+        if ($date->isTuesday()) {
+            // slot X op dinsdag (5,6,7,8).
+            $slot = ($weekNr % 4) + 5;
+        }
+
+        if ($date->isWednesday()) {
+            // slot X op woensdag
+            $slot = ($weekNr % 4) + 9;
+        }
+
+        if ($date->isThursday()) {
+            // slot X op donderdag
+            $slot = ($weekNr % 4) + 13;
+        }
+
+        return $slot;
+    }
+
+    /**
+     * @param string $title
+     * @param string $description
+     *
+     * @return string
+     */
+    private function generateDescription(string $title, string $description): string
+    {
+        $now  = Carbon::now($_ENV['TZ'])->toIso8601String();
+        $line = "Agenda: %s\r\nTitle: %s\r\nDescription: %s\r\nLast pull: %s\r\nVersion: %s";
+
+        return sprintf($line, $this->calendarName, $title, $description, $now, self::VERSION);
+    }
+
+    /**
+     * @param Carbon $date
      * @param int    $pattern
+     *
      * @return bool
      */
     private function matchesDatePattern(Carbon $date, int $pattern): bool
@@ -223,9 +253,11 @@ class CalendarGenerator
             case 5:
                 // second friday of the month
                 $secondFriday = Carbon::parse(sprintf('second Friday of %s', $date->format('F Y')));
+
                 return $secondFriday->isSameDay($date);
             case 6:
                 $secondWednesday = Carbon::parse(sprintf('second Wednesday of %s', $date->format('F Y')));
+
                 return $secondWednesday->isSameDay($date);
             case 7:
                 return $date->isWeekday();
@@ -254,38 +286,46 @@ class CalendarGenerator
     }
 
     /**
-     * @param Carbon $date
-     * @return int
+     * @throws JsonException
      */
-    private function coffeeSlot(Carbon $date): int
+    private function parseJson(): void
     {
-        $weekNr = $date->isoWeek - 1;
-        $slot   = 0;
-        if ($date->isMonday()) {
-            // slot X op maandag (1,2,3,4).
-            $slot = ($weekNr % 4) + 1;
+        $file = sprintf('%s%s%s', $this->directory, DIRECTORY_SEPARATOR, 'appointments.json');
+        $json = [];
+        if (file_exists($file)) {
+            $json = json_decode(file_get_contents($file), true, 8, JSON_THROW_ON_ERROR);
         }
+        $validCalendar = false;
+        foreach ($json as $appointment) {
+            if ($this->calendarName === $appointment['calendar']) {
+                $validCalendar = true;
+            }
+        }
+        // exit if no such calendar exists
+        if (false === $validCalendar) {
+            echo 'NOK';
+            exit;
+        }
+        $this->appointments = $json;
+    }
 
-        if ($date->isTuesday()) {
-            // slot X op dinsdag (5,6,7,8).
-            $slot = ($weekNr % 4) + 5;
+    /**
+     * @param Carbon $date
+     */
+    private function processAppointments(Carbon $date): void
+    {
+        /** @var array $appointment */
+        foreach ($this->appointments as $appointment) {
+            if ($this->matchesDatePattern($date, $appointment['pattern'])) {
+                $this->addAppointment($date, $appointment);
+            }
         }
-
-        if ($date->isWednesday()) {
-            // slot X op woensdag
-            $slot = ($weekNr % 4) + 9;
-        }
-
-        if ($date->isThursday()) {
-            // slot X op donderdag
-            $slot = ($weekNr % 4) + 13;
-        }
-        return $slot;
     }
 
     /**
      * @param Carbon $date
      * @param string $title
+     *
      * @return string
      */
     private function replaceVariables(Carbon $date, string $title): string
@@ -299,38 +339,9 @@ class CalendarGenerator
 
 
         $search  = ['%month', '%year', '%next_month', '%next_year', '%dag', '%coffee_slot'];
-        $replace = [$this->months[$date->month], $date->year, $this->months[$next->month], $next->year, $this->days[(int) $date->format('N')], $slot];
+        $replace = [$this->months[$date->month], $date->year, $this->months[$next->month], $next->year, $this->days[(int)$date->format('N')], $slot];
 
         return str_replace($search, $replace, $title);
-    }
-
-    /**
-     * @param string $title
-     * @param string $description
-     * @return string
-     */
-    private function generateDescription(string $title, string $description): string
-    {
-        $now  = Carbon::now($_ENV['TZ'])->toIso8601String();
-        $line = "Agenda: %s\r\nTitle: %s\r\nDescription: %s\r\nLast pull: %s\r\nVersion: %s";
-
-        return sprintf($line, $this->calendarName, $title, $description, $now, self::VERSION);
-    }
-
-    /**
-     * @param Carbon $start
-     */
-    public function setStart(Carbon $start): void
-    {
-        $this->start = $start;
-    }
-
-    /**
-     * @param Carbon $end
-     */
-    public function setEnd(Carbon $end): void
-    {
-        $this->end = $end;
     }
 
 

@@ -29,7 +29,7 @@
 
 require_once __DIR__ . '/vendor/autoload.php';
 
-use App\TodoCalendarGenerator;
+use App\TodoOverviewGenerator;
 use Dotenv\Dotenv;
 
 $dotenv = Dotenv::createImmutable(__DIR__);
@@ -45,15 +45,26 @@ if ($_GET['secret'] !== $_ENV['CALENDAR_SECRET']) {
     die();
 }
 
-$generator = new TodoCalendarGenerator;
+$generator = new TodoOverviewGenerator;
 $config    = [
     'cache'           => '.',
     'local_directory' => $_ENV['NEXTCLOUD_LOCAL_DIRECTORY'],
-    'use_cache'       => 'never',
+    'use_cache'       => true,
 ];
 
 $generator->setConfiguration($config);
 $generator->parseTodosLocal();
+$pages = $generator->getPages();
+
+ksort($pages);
+
+$grouped = [];
+foreach ($pages as $page) {
+    $type             = $page['type'];
+    $grouped[$type]   = $grouped[$type] ?? [];
+    $grouped[$type][] = $page;
+}
+ksort($grouped);
 
 ?>
 <!doctype html>
@@ -64,14 +75,41 @@ $generator->parseTodosLocal();
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-F3w7mX95PdgyTmZZMECAngseQB83DfGTowi0iMjiWaeVhAn4FJkqJByhZMI3AhiU" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.1/dist/css/bootstrap.min.css" rel="stylesheet"
+          integrity="sha384-F3w7mX95PdgyTmZZMECAngseQB83DfGTowi0iMjiWaeVhAn4FJkqJByhZMI3AhiU" crossorigin="anonymous">
 
     <title>TODO (local)</title>
 </head>
 <body>
-<div class="container">
-    <h1>TODO (local)</h1>
-    <?php echo $generator->generateHtml(); ?>
+<div class="container-fluid">
+    <h1>TODO</h1>
+    <div class="row">
+        <div class="col-lg-4">
+            <h2>Lijst</h2>
+            <?php echo $generator->generateHtml(); ?>
+        </div>
+        <div class="col-lg-4">
+            <h2>Dossiers</h2>
+            <?php foreach ($grouped as $type => $pages) { ?>
+                <h3><?php echo $type; ?></h3>
+                <table class="table">
+                    <?php foreach ($pages as $page) { ?>
+                        <?php if (count($page['todos']) !== 0) { ?>
+                            <tr>
+                                <td><?php echo $page['title']; ?></td>
+                                <td style="width:10%;"><?php echo count($page['todos']); ?></td>
+                            </tr>
+                        <?php } ?>
+                    <?php } ?>
+                </table>
+            <?php } ?>
+        </div>
+        <div class="col-lg-4">
+            <h2>Zonder datum</h2>
+        </div>
+    </div>
+
+
 </div>
 </body>
 </html>
