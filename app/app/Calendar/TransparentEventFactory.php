@@ -1,7 +1,8 @@
 <?php
 
+
 /*
- * weekly-tasks.php
+ * TransparentEventFactory.php
  * Copyright (c) 2021 Sander Dorigo
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -23,7 +24,24 @@
  * SOFTWARE.
  */
 
-declare(strict_types=1);
-// this file used to contain an actual calendar and is now a redirect. You can safely delete it.
-header('Location: ./index.php?calendar=weekly-tasks&user=REDIRECT');
-exit;
+namespace App\Calendar;
+
+use Eluceo\iCal\Domain\Entity\Event;
+use Eluceo\iCal\Presentation\Component;
+use Eluceo\iCal\Presentation\Component\Property;
+use Eluceo\iCal\Presentation\Component\Property\Value\TextValue;
+use Eluceo\iCal\Presentation\Factory\EventFactory;
+
+/**
+ * Class TransparentEventFactory
+ */
+class TransparentEventFactory extends EventFactory
+{
+    public function createComponent(Event $event): Component
+    {
+        $component = parent::createComponent($event);
+        $component = $component->withProperty(new Property('TRANSP', new TextValue('TRANSPARENT')));
+
+        return $component->withProperty(new Property('class', new TextValue('PUBLIC')));
+    }
+}

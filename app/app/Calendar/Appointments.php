@@ -25,7 +25,7 @@
 
 declare(strict_types=1);
 
-namespace App;
+namespace App\Calendar;
 
 use Carbon\Carbon;
 use Eluceo\iCal\Domain\Entity\Calendar;
@@ -40,12 +40,10 @@ use Eluceo\iCal\Presentation\Factory\CalendarFactory;
 use JsonException;
 
 /**
- * Class CalendarGenerator
+ * Class Appointments
  */
-class CalendarGenerator
+class Appointments
 {
-    use ParseTodos;
-
     public const VERSION = '4.1';
     private array    $appointments;
     private Calendar $calendar;
@@ -108,7 +106,7 @@ class CalendarGenerator
         foreach ($list as $file) {
             if ('json' === substr($file, -4)) {
                 $fullFile = sprintf('%s%s%s', $this->directory, DIRECTORY_SEPARATOR, $file);
-                $current = [];
+                $current  = [];
                 // read file
                 if (file_exists($fullFile)) {
                     $current = json_decode(file_get_contents($fullFile), true, 8, JSON_THROW_ON_ERROR);
@@ -148,118 +146,20 @@ class CalendarGenerator
         // Transform domain entity into an iCalendar component
         $componentFactory = new CalendarFactory(new TransparentEventFactory);
 
-        return (string)$componentFactory->createCalendar($this->calendar);
-    }
-
-    /**
-     * @param Carbon $end
-     */
-    public function setEnd(Carbon $end): void
-    {
-        $this->end = $end;
-    }
-
-    /**
-     * @param Carbon $start
-     */
-    public function setStart(Carbon $start): void
-    {
-        $this->start = $start;
+        return (string) $componentFactory->createCalendar($this->calendar);
     }
 
     /**
      * @param Carbon $date
-     * @param array  $appointment
      */
-    private function addAppointment(Carbon $date, array $appointment): void
+    private function processAppointments(Carbon $date): void
     {
-        // set the start and end time of the appointment:
-        $appointmentStart = clone $date;
-        $appointmentEnd   = clone $date;
-
-        // same day, possibly as other "stacked" appointments
-        if (true === $appointment['stacked']) {
-            $dateString                   = $date->format('Y-m-d');
-            $this->timeSlots[$dateString] = array_key_exists($dateString, $this->timeSlots) ? $this->timeSlots[$dateString] + 1 : 0;
-
-            $appointmentStart->setTime(6, 0);
-            $appointmentEnd->setTime(6, 30);
-            $appointmentStart->addMinutes(30 * $this->timeSlots[$dateString]);
-            $appointmentEnd->addMinutes(30 * $this->timeSlots[$dateString]);
+        /** @var array $appointment */
+        foreach ($this->appointments as $appointment) {
+            if ($this->matchesDatePattern($date, $appointment['pattern'])) {
+                $this->addAppointment($date, $appointment);
+            }
         }
-
-        if (false === $appointment['stacked']) {
-            $appointmentStart = clone $date;
-            $appointmentEnd   = clone $date;
-
-            // explode start and end:
-            $parts = explode(':', $appointment['start_time']);
-            $appointmentStart->setTime($parts[0], $parts[1], $parts[2]);
-            $parts = explode(':', $appointment['end_time']);
-            $appointmentEnd->setTime($parts[0], $parts[1], $parts[2]);
-
-        }
-
-        if ($this->calendarName === $appointment['calendar']) {
-            $title       = $this->replaceVariables($date, $appointment['title']);
-            $description = $this->generateDescription($title, $this->replaceVariables($date, $appointment['description']));
-            $string      = substr(hash('sha256', sprintf('%s-%s', $date->format('Y-m-d'), $title)), 0, 16);
-            $uid         = new UniqueIdentifier($string);
-            $occurrence  = new TimeSpan(new DateTime($appointmentStart->toDateTime(), true), new DateTime($appointmentEnd->toDateTime(), true));
-            $organizer   = new Organizer(new EmailAddress($_ENV['ORGANIZER_MAIL']), $_ENV['ORGANIZER_NAME'], null, new EmailAddress($_ENV['ORGANIZER_MAIL']));
-
-            $vEvent = new Event($uid);
-            $vEvent->setOrganizer($organizer)
-                   ->setSummary($title)
-                   ->setDescription($description)->setOccurrence($occurrence);
-            $this->calendar->addEvent($vEvent);
-        }
-    }
-
-    /**
-     * @param Carbon $date
-     *
-     * @return int
-     */
-    private function coffeeSlot(Carbon $date): int
-    {
-        $weekNr = $date->isoWeek - 1;
-        $slot   = 0;
-        if ($date->isMonday()) {
-            // slot X op maandag (1,2,3,4).
-            $slot = ($weekNr % 4) + 1;
-        }
-
-        if ($date->isTuesday()) {
-            // slot X op dinsdag (5,6,7,8).
-            $slot = ($weekNr % 4) + 5;
-        }
-
-        if ($date->isWednesday()) {
-            // slot X op woensdag
-            $slot = ($weekNr % 4) + 9;
-        }
-
-        if ($date->isThursday()) {
-            // slot X op donderdag
-            $slot = ($weekNr % 4) + 13;
-        }
-
-        return $slot;
-    }
-
-    /**
-     * @param string $title
-     * @param string $description
-     *
-     * @return string
-     */
-    private function generateDescription(string $title, string $description): string
-    {
-        $now  = Carbon::now($_ENV['TZ'])->toIso8601String();
-        $line = "Agenda: %s\r\nTitle: %s\r\nDescription: %s\r\nLast pull: %s\r\nVersion: %s";
-
-        return sprintf($line, $this->calendarName, $title, $description, $now, self::VERSION);
     }
 
     /**
@@ -325,14 +225,82 @@ class CalendarGenerator
 
     /**
      * @param Carbon $date
+     *
+     * @return int
      */
-    private function processAppointments(Carbon $date): void
+    private function coffeeSlot(Carbon $date): int
     {
-        /** @var array $appointment */
-        foreach ($this->appointments as $appointment) {
-            if ($this->matchesDatePattern($date, $appointment['pattern'])) {
-                $this->addAppointment($date, $appointment);
-            }
+        $weekNr = $date->isoWeek - 1;
+        $slot   = 0;
+        if ($date->isMonday()) {
+            // slot X op maandag (1,2,3,4).
+            $slot = ($weekNr % 4) + 1;
+        }
+
+        if ($date->isTuesday()) {
+            // slot X op dinsdag (5,6,7,8).
+            $slot = ($weekNr % 4) + 5;
+        }
+
+        if ($date->isWednesday()) {
+            // slot X op woensdag
+            $slot = ($weekNr % 4) + 9;
+        }
+
+        if ($date->isThursday()) {
+            // slot X op donderdag
+            $slot = ($weekNr % 4) + 13;
+        }
+
+        return $slot;
+    }
+
+    /**
+     * @param Carbon $date
+     * @param array  $appointment
+     */
+    private function addAppointment(Carbon $date, array $appointment): void
+    {
+        // set the start and end time of the appointment:
+        $appointmentStart = clone $date;
+        $appointmentEnd   = clone $date;
+
+        // same day, possibly as other "stacked" appointments
+        if (true === $appointment['stacked']) {
+            $dateString                   = $date->format('Y-m-d');
+            $this->timeSlots[$dateString] = array_key_exists($dateString, $this->timeSlots) ? $this->timeSlots[$dateString] + 1 : 0;
+
+            $appointmentStart->setTime(6, 0);
+            $appointmentEnd->setTime(6, 30);
+            $appointmentStart->addMinutes(30 * $this->timeSlots[$dateString]);
+            $appointmentEnd->addMinutes(30 * $this->timeSlots[$dateString]);
+        }
+
+        if (false === $appointment['stacked']) {
+            $appointmentStart = clone $date;
+            $appointmentEnd   = clone $date;
+
+            // explode start and end:
+            $parts = explode(':', $appointment['start_time']);
+            $appointmentStart->setTime($parts[0], $parts[1], $parts[2]);
+            $parts = explode(':', $appointment['end_time']);
+            $appointmentEnd->setTime($parts[0], $parts[1], $parts[2]);
+
+        }
+
+        if ($this->calendarName === $appointment['calendar']) {
+            $title       = $this->replaceVariables($date, $appointment['title']);
+            $description = $this->generateDescription($title, $this->replaceVariables($date, $appointment['description']));
+            $string      = substr(hash('sha256', sprintf('%s-%s', $date->format('Y-m-d'), $title)), 0, 16);
+            $uid         = new UniqueIdentifier($string);
+            $occurrence  = new TimeSpan(new DateTime($appointmentStart->toDateTime(), true), new DateTime($appointmentEnd->toDateTime(), true));
+            $organizer   = new Organizer(new EmailAddress($_ENV['ORGANIZER_MAIL']), $_ENV['ORGANIZER_NAME'], null, new EmailAddress($_ENV['ORGANIZER_MAIL']));
+
+            $vEvent = new Event($uid);
+            $vEvent->setOrganizer($organizer)
+                   ->setSummary($title)
+                   ->setDescription($description)->setOccurrence($occurrence);
+            $this->calendar->addEvent($vEvent);
         }
     }
 
@@ -353,9 +321,39 @@ class CalendarGenerator
 
 
         $search  = ['%month', '%year', '%next_month', '%next_year', '%dag', '%coffee_slot'];
-        $replace = [$this->months[$date->month], $date->year, $this->months[$next->month], $next->year, $this->days[(int)$date->format('N')], $slot];
+        $replace = [$this->months[$date->month], $date->year, $this->months[$next->month], $next->year, $this->days[(int) $date->format('N')], $slot];
 
         return str_replace($search, $replace, $title);
+    }
+
+    /**
+     * @param string $title
+     * @param string $description
+     *
+     * @return string
+     */
+    private function generateDescription(string $title, string $description): string
+    {
+        $now  = Carbon::now($_ENV['TZ'])->toIso8601String();
+        $line = "Agenda: %s\r\nTitle: %s\r\nDescription: %s\r\nLast pull: %s\r\nVersion: %s";
+
+        return sprintf($line, $this->calendarName, $title, $description, $now, self::VERSION);
+    }
+
+    /**
+     * @param Carbon $end
+     */
+    public function setEnd(Carbon $end): void
+    {
+        $this->end = $end;
+    }
+
+    /**
+     * @param Carbon $start
+     */
+    public function setStart(Carbon $start): void
+    {
+        $this->start = $start;
     }
 
 

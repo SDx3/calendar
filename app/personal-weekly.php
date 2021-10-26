@@ -25,5 +25,5 @@
 
 declare(strict_types=1);
 // this file used to contain an actual calendar and is now a redirect. You can safely delete it.
-header('Location: ./index.php?calendar=personal-weekly');
+header('Location: ./index.php?calendar=personal-weekly&user=REDIRECT');
 exit;

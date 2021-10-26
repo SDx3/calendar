@@ -1,8 +1,6 @@
 <?php
-
-
 /*
- * TransparentEventFactory.php
+ * SharedTraits.php
  * Copyright (c) 2021 Sander Dorigo
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -26,22 +24,40 @@
 
 namespace App;
 
-use Eluceo\iCal\Domain\Entity\Event;
-use Eluceo\iCal\Presentation\Component;
-use Eluceo\iCal\Presentation\Component\Property;
-use Eluceo\iCal\Presentation\Component\Property\Value\TextValue;
-use Eluceo\iCal\Presentation\Factory\EventFactory;
+use Monolog\Logger;
 
 /**
- * Class TransparentEventFactory
+ * Trait SharedTraits
  */
-class TransparentEventFactory extends EventFactory
+trait SharedTraits
 {
-    public function createComponent(Event $event): Component
-    {
-        $component = parent::createComponent($event);
-        $component = $component->withProperty(new Property('TRANSP', new TextValue('TRANSPARENT')));
+    protected ?Logger $logger;
 
-        return $component->withProperty(new Property('class', new TextValue('PUBLIC')));
+    /**
+     * @param string $message
+     */
+    protected function debug(string $message): void
+    {
+        $this->logger?->debug($message);
     }
+
+    /**
+     * @param string $appointment
+     *
+     * @return string|null
+     */
+    protected function getTypeLabel(string $appointment): ?string
+    {
+        $todoTypes = ['Ensure', 'Follow up', 'Meet', 'Discuss', 'Track', 'Go-to', 'Bring', 'Get', 'Share'];
+        /** @var string $search */
+        foreach ($todoTypes as $todoType) {
+            $search = sprintf('%s:', $todoType);
+            if (str_contains($appointment, $search)) {
+                return $todoType;
+            }
+        }
+
+        return null;
+    }
+
 }

@@ -29,7 +29,7 @@
 
 require_once __DIR__ . '/vendor/autoload.php';
 
-use App\TodoCalendarGenerator;
+use App\Calendar\Todos;
 use Dotenv\Dotenv;
 
 $dotenv = Dotenv::createImmutable(__DIR__);
@@ -48,7 +48,7 @@ if ($debug) {
     echo '<pre>';
 }
 
-$generator = new TodoCalendarGenerator;
+$generator = new Todos;
 $config    = [
     'cache'     => __DIR__ . '/cache',
     'host'      => $_ENV['NEXTCLOUD_HOST'],

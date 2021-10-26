@@ -27,7 +27,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/vendor/autoload.php';
 
-use App\CalendarGenerator;
+use App\Calendar\Appointments;
 use Carbon\Carbon;
 use Dotenv\Dotenv;
 
@@ -53,7 +53,7 @@ if (false === $calendar) {
     exit;
 }
 
-$generator = new CalendarGenerator(sprintf('%s/schedules',__DIR__), $calendar);
+$generator = new Appointments(sprintf('%s/schedules',__DIR__), $calendar);
 
 $generator->setStart($start);
 $generator->setEnd($end);
