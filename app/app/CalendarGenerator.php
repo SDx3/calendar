@@ -97,6 +97,41 @@ class CalendarGenerator
     }
 
     /**
+     * @throws JsonException
+     */
+    private function parseJson(): void
+    {
+        // loop directory:
+        $list          = scandir($this->directory);
+        $json          = [];
+        $validCalendar = false;
+        foreach ($list as $file) {
+            if ('json' === substr($file, -4)) {
+                $fullFile = sprintf('%s%s%s', $this->directory, DIRECTORY_SEPARATOR, $file);
+                $current = [];
+                // read file
+                if (file_exists($fullFile)) {
+                    $current = json_decode(file_get_contents($fullFile), true, 8, JSON_THROW_ON_ERROR);
+                }
+
+                // makes calendar valid?
+                foreach ($current as $appointment) {
+                    if ($this->calendarName === $appointment['calendar']) {
+                        $validCalendar = true;
+                    }
+                }
+                $json = array_merge($json, $current);
+            }
+        }
+        // exit if no such calendar exists
+        if (false === $validCalendar) {
+            echo 'NOK';
+            exit;
+        }
+        $this->appointments = $json;
+    }
+
+    /**
      * @return string
      */
     public function generate(): string
@@ -282,6 +317,9 @@ class CalendarGenerator
             case 16:
                 // is a thursday and is a valid moment for coffee slot
                 return $date->isThursday() && 0 !== $this->coffeeSlot($date);
+            case 17:
+
+                break;
         }
     }
 

@@ -31,7 +31,6 @@ use App\CalendarGenerator;
 use Carbon\Carbon;
 use Dotenv\Dotenv;
 
-
 $dotenv = Dotenv::createImmutable(__DIR__);
 $dotenv->load();
 
@@ -54,7 +53,7 @@ if (false === $calendar) {
     exit;
 }
 
-$generator = new CalendarGenerator(__DIR__, $calendar);
+$generator = new CalendarGenerator(sprintf('%s/schedules',__DIR__), $calendar);
 
 $generator->setStart($start);
 $generator->setEnd($end);

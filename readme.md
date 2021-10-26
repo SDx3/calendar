@@ -12,7 +12,11 @@ A little script that generates transparent appointments in separate ICS calendar
 
 ## Creating appointments
 
-In `appointments.json` you add all the things you wish to be reminded about:
+First, copy `example.json` to `schedules/my-schema.json`.
+
+Every file in the `schedules` directory will be processed, allowing you to separate between calendars.
+
+In `schedules/my-schema.json` you add all the things you wish to be reminded about:
 
 ```json
 [
