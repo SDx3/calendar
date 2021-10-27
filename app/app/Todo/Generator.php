@@ -84,9 +84,6 @@ class Generator
                 $this->loadFile($directory, $file);
             }
         }
-//        foreach ($this->todos as $todo) {
-//            $this->pages[$todo['page']]['todos'][] = $todo;
-//        }
     }
 
     /**

@@ -68,10 +68,18 @@ foreach ($pages as $page) {
         $key       = '9999-99-00';
         $dateTitle = '(geen datum)';
 
-        if (null !== $todo->date) {
+        // to do with date
+        if (null !== $todo->date && 'TODO' === $todo->type) {
             $key       = $todo->date->format('Y-m-d');
             $dateTitle = str_replace('  ', ' ', $todo->date->formatLocalized('%A %e %B %Y'));
         }
+
+        // to do without date
+        if (null === $todo->date && 'TODO' === $todo->type) {
+            $key       = '0000-99-00';
+            $dateTitle = '(geen datum todo)';
+        }
+
         $list[$key]            = $list[$key] ?? [
                 'title' => $dateTitle,
                 'todos' => [],
@@ -128,8 +136,7 @@ ksort($pageList);
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.1/dist/css/bootstrap.min.css" rel="stylesheet"
-          integrity="sha384-F3w7mX95PdgyTmZZMECAngseQB83DfGTowi0iMjiWaeVhAn4FJkqJByhZMI3AhiU" crossorigin="anonymous">
+    <link href="./lib/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 
     <title>TODO (local)</title>
 </head>
@@ -231,7 +238,7 @@ ksort($pageList);
 
 
 </div>
-<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+<script src="./lib/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
 <script type="text/javascript">
     $(function () {
         "use strict";

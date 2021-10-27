@@ -87,7 +87,7 @@ class Todo
 
         $today = Carbon::now($_ENV['TZ'])->startOfDay();
         $end   = Carbon::now($_ENV['TZ']);
-        $end->addMonths(3);
+        $end->addMonths(1);
 
 
         // lazy split to get repeater in place
@@ -140,6 +140,7 @@ class Todo
             }
             if (str_starts_with($part, 'LATER')) {
                 $todo->parseFromSingleTodo($part, $shortName);
+                $todo->type = 'LATER';
             }
 
             if (str_starts_with($part, 'SCHEDULED')) {
