@@ -30,6 +30,7 @@
 require_once __DIR__ . '/vendor/autoload.php';
 
 use App\Model\Page;
+use App\Model\Todo;
 use App\Todo\Generator;
 use Dotenv\Dotenv;
 
@@ -80,6 +81,18 @@ foreach ($pages as $page) {
 }
 ksort($list);
 
+foreach ($list as $key => $info) {
+    $todos = $info['todos'];
+    usort($todos, function (Todo $left, Todo $right) {
+        if ($left->priority == $right->priority) {
+            return 0;
+        }
+        return ($left->priority < $right->priority) ? -1 : 1;
+    });
+    $list[$key]['todos'] = $todos;
+}
+
+
 // sort pages by type, then count todo's by priority:
 /** @var \App\Model\Page $page */
 $pageList = [];
@@ -106,58 +119,6 @@ foreach ($pageList as $type => $info) {
 }
 ksort($pageList);
 
-//
-//
-///** @var \App\Model\Page $page */
-//foreach ($pages as $page) {
-//    echo '<h3>' . $page->title . '</h3>';
-//    echo '<ul>';
-//    /** @var \App\Model\Todo $todo */
-//    foreach ($page->getTodos() as $todo) {
-//
-//
-//        echo '<li>[date: ' . $todo->date?->format('Y-m-d') . ']';
-//
-//        /*
-//         *     public string  $type; // TODO LATER DONE
-//    public string  $keyword;
-//    public string  $page;
-//    public string  $text;
-//    public ?Carbon $date;
-//    public int     $priority = 100;
-//    public bool    $repeater = false;
-//         */
-//
-//        echo '[page: ' . $todo->page ?? 'NOPAGE' . ']';
-//        echo '[prio: ' . $todo->priority . ']';
-//        echo '[type: ' . $todo->type . ']';
-//        echo '[keyword: ' . $todo->keyword . ']';
-//        echo '[text: ' . $todo->text . ']';
-//        echo '[repeater: ' . $todo->repeater . ']';
-//
-//        echo '</li>';
-//        //: '.$todo->text.'</li>';
-//    }
-//    echo '</ul>';
-//}
-//
-//
-//exit;
-
-
-//$generator->parseTodosLocal();
-//$pages = $generator->getPages();
-//
-//ksort($pages);
-//
-//$grouped = [];
-//foreach ($pages as $page) {
-//    $type             = $page['type'];
-//    $grouped[$type]   = $grouped[$type] ?? [];
-//    $grouped[$type][] = $page;
-//}
-//ksort($grouped);
-
 ?>
 <!doctype html>
 <html lang="en">
@@ -176,25 +137,32 @@ ksort($pageList);
 <div class="container-fluid">
     <h1>TODO</h1>
     <div class="row">
-        <div class="col-lg-4">
-            <h2>Lijst</h2>
+        <div class="col-lg-6">
+            <h2>Lijst <a class="small text-muted show-all" style="display:none;" href="#">laat alles zien</a></h2>
             <?php
-            foreach ($list as $key => $info) { ?>
-                <h3><?php
-                    echo $info['title']; ?> (<?php
-                    echo count($info['todos']) ?>)</h3>
-                <ol>
-                    <?php
-                    foreach ($info['todos'] as $todo) { ?>
-                        <li><small><?php
-                                echo $todo->renderAsHtml(); ?></small></li>
+            foreach ($list
+
+                     as $key => $info) { ?>
+                <div class="date-block" data-date="<?php
+                echo $key; ?>">
+                    <h3><?php
+                        echo $info['title']; ?> (<span data-date="<?php echo $key; ?>" class="date-count"><?php
+                        echo count($info['todos']) ?></span>)</h3>
+                    <ol class="date-list" data-date="<?php echo $key; ?>">
                         <?php
-                    } ?>
-                </ol>
+                        foreach ($info['todos'] as $todo) { ?>
+                            <li data-page="<?php
+                            echo $todo->getPageClass(); ?>" class="todo-item"><small><?php
+                                    echo $todo->renderAsHtml(); ?></small></li>
+                            <?php
+                        } ?>
+                    </ol>
+                </div>
+
                 <?php
             } ?>
         </div>
-        <div class="col-lg-4">
+        <div class="col-lg-6">
             <h2>Dossiers</h2>
             <?php
             foreach ($pageList as $set) { ?>
@@ -213,19 +181,44 @@ ksort($pageList);
                     <tbody>
                     <?php
                     foreach ($set['pages'] as $page) { ?>
-                        <tr>
+                        <tr <?php
+                            if (0 === $page->getWeight()) { ?>class="text-muted"<?php
+                        } ?> >
                             <td>
                                 <?php
-                                echo $page->title ?>
+                                if (0 !== $page->getWeight()) { ?>
+                                <a href="#" style="text-decoration: none;" class="filter-page" data-page="<?php
+                                echo $page->getClass(); ?>">
+                                    <?php
+                                    } ?>
+                                    <?php
+                                    echo $page->title ?>
+                                    <?php
+                                    if (0 !== $page->getWeight()) { ?>
+                                </a>
+                            <?php
+                            } ?>
                             </td>
-                            <td><?php
-                                echo $page->prioCount(10); ?></td>
-                            <td><?php
+                            <td>
+                                <span class="badge bg-light text-dark rounded-pill">
+                                <?php
+                                echo $page->prioCount(10); ?>
+                            </span>
+                            </td>
+                            <td><span class="badge bg-light text-dark rounded-pill">
+                                <?php
                                 echo $page->prioCount(20); ?></td>
-                            <td><?php
+                            </span>
+                            <td>
+                                <span class="badge bg-light text-dark rounded-pill">
+                                <?php
                                 echo $page->prioCount(30); ?></td>
-                            <td><?php
+                            </span>
+                            <td>
+                                <span class="badge bg-light text-dark rounded-pill">
+                                <?php
                                 echo $page->prioCount(null); ?></td>
+                            </span>
                         </tr>
                         <?php
                     } ?>
@@ -233,16 +226,52 @@ ksort($pageList);
                 </table>
                 <?php
             } ?>
-            Hier
-        </div>
-        <div class="col-lg-4">
-            <h2>Zonder datum</h2>
-            Hier
         </div>
     </div>
 
 
 </div>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+<script type="text/javascript">
+    $(function () {
+        "use strict";
+        $('.filter-page').click(filterTodo);
+        $('.show-all').click(showAll);
+    });
+
+    function showAll() {
+        $('.show-all').hide();
+        $('li.todo-item').show();
+        $('div.date-block').show();
+        countBlocks();
+        return false;
+    }
+
+    function filterTodo(e) {
+        var tg = $(e.currentTarget);
+        var page = tg.data('page');
+        $('li.todo-item').hide();
+        $('li.todo-item[data-page="' + page + '"]').show();
+        $('.show-all').show();
+        countBlocks();
+        return false;
+    }
+    function countBlocks() {
+        $('.date-block').each(function(i,v) {
+            let block = $(v);
+            let date = block.data('date');
+            let count = $('ol.date-list[data-date="'+date+'"] li:visible').length;
+            $('span.date-count[data-date="'+date+'"]').text(count);
+            if(0===count) {
+                $('div.date-block[data-date="'+date+'"]').hide();
+            }
+            // loop all ol's and count them:
+            //console.log();
+            //class="date-list" data-date="<?php echo $key; ?>">
+        });
+    }
+
+</script>
 </body>
 </html>
 

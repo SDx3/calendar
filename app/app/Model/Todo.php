@@ -166,6 +166,19 @@ class Todo
         return [$todo];
     }
 
+
+    /**
+     * @return string
+     */
+    public function getPageClass(): string
+    {
+        if('' === $this->page) {
+            var_dump($this);
+            exit;
+        }
+        return Page::asClass($this->page);
+    }
+
     /**
      * @return string
      */
@@ -176,6 +189,7 @@ class Todo
         $html .= sprintf('<span class="badge bg-secondary">%s</span>', $this->page);
         $html .= ' ';
         $html .= $this->keywordLabel();
+        //$html .= '<br>';
         $html .= ' ';
         $html .= $this->text;
 
@@ -253,7 +267,7 @@ class Todo
             'Bring'     => 'bg-primary',
             'Get'       => 'bg-primary',
             'Share'     => 'bg-primary',
-            '!!' => 'bg-danger',
+            '!!'        => 'bg-danger',
         ];
 
         // add type to $type with the right color:

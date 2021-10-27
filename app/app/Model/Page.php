@@ -29,14 +29,24 @@ class Page
     public string $title;
     public array  $todos;
     public array  $tags;
+    public array  $tagConfig;
 
     /**
      *
      */
     public function __construct()
     {
-        $this->todos = [];
-        $this->tags  = [];
+        $this->todos     = [];
+        $this->tags      = [];
+        $this->tagConfig = [];
+    }
+
+    /**
+     * @param array $tagConfig
+     */
+    public function setTagConfig(array $tagConfig): void
+    {
+        $this->tagConfig = $tagConfig;
     }
 
     public static function createFromString(string $content, string $title): self
@@ -60,7 +70,7 @@ class Page
         }
 
         foreach ($tags as $index => $tag) {
-            $tags[$index] = trim($tag);
+            $tags[$index] = strtolower(trim($tag));
         }
         asort($tags);
 
@@ -76,6 +86,21 @@ class Page
     public function getTodos(): array
     {
         return $this->todos;
+    }
+
+    /**
+     * @return string
+     */
+    public function getClass(): string
+    {
+        return self::asClass($this->title);
+
+    }
+
+    public static function asClass(string $title): string
+    {
+        $search = [' ', '(', ')'];
+        return strtolower(str_replace($search, '-', $title));
     }
 
     /**
@@ -119,49 +144,66 @@ class Page
      */
     public function getWeight(): int
     {
-
         $weights = [
-            10  => 5,
-            20  => 1,
-            30  => 0.2,
-            100 => 0,
+            10  => 50,
+            20  => 10,
+            30  => 2,
+            50  => 1,
+            100 => 1,
         ];
         $total   = 0;
 
         /** @var Todo $todo */
         foreach ($this->todos as $todo) {
-            $weight = $weights[$todo->priority] ?? 0;
-            $total  += $weight;
+            if (false === $todo->repeater) {
+                $weight = $weights[$todo->priority];
+                $total  += $weight;
+            }
         }
         return $total;
     }
 
+    /**
+     * @return string
+     */
     public function getType(): string
     {
         if (0 === count($this->tags)) {
             return 'zz - Overige';
         }
-        if ($this->hasTag('ordina') && $this->hasTag('prospects')) {
-            return '1. Prospects';
+        foreach ($this->tagConfig as $page => $tags) {
+            if ($this->hasAllTags($tags)) {
+                return $page;
+            }
         }
-        if ($this->hasTag('ordina') && $this->hasTag('projects')) {
-            return '2. Project';
-        }
-        if ($this->hasTag('strategyone') && $this->hasTag('people')) {
-            return '3. Team';
-        }
-        if ($this->hasTag('ordina') && $this->hasTag('aor')) {
-            return '4. Ordina themes';
-        }
-        if ($this->hasTag('ordina') && $this->hasTag('people')) {
-            return '5. Ordina people';
-        }
+
+//        if ($this->hasTag('ordina') && $this->hasTag('people')) {
+//            return '5. Ordina people';
+//        }
         return 'zz - Onbekend';
     }
 
+    /**
+     * @param string $tag
+     * @return bool
+     */
     private function hasTag(string $tag): bool
     {
-        return in_array($tag, $this->tags, true);
+        return in_array(strtolower($tag), $this->tags, true);
     }
 
+    /**
+     * @param array $tags
+     * @return bool
+     */
+    private function hasAllTags(array $tags): bool
+    {
+        $count = 0;
+        foreach ($tags as $tag) {
+            if ($this->hasTag($tag)) {
+                $count++;
+            }
+        }
+        return $count === count($tags);
+    }
 }

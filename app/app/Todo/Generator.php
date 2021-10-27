@@ -23,16 +23,16 @@ class Generator
     private array  $configuration;
     //private array  $laters;
     private array $pages;
+    private array $tagConfig;
 
     //private array  $todos;
 
     public function __construct()
     {
         $this->configuration = [];
-        //$this->todos         = [];
-        //$this->laters        = [];
-        $this->logger = null;
-        $this->pages  = [];
+        $this->logger        = null;
+        $this->pages         = [];
+        $this->parseTagConfig();
     }
 
     /**
@@ -130,7 +130,8 @@ class Generator
      */
     private function parseFile(string $fileContent, string $shortName): void
     {
-        $page  = Page::createFromString($fileContent, $shortName);
+        $page = Page::createFromString($fileContent, $shortName);
+        $page->setTagConfig($this->tagConfig);
         $todos = $this->parsePageTodos($fileContent, $shortName);
         $page->setTodos($todos);
 
@@ -179,7 +180,7 @@ class Generator
     }
 
     /**
-     * Process a line that alreadt known to be a to do item.
+     * Process a line that already known to be a to do item.
      *
      * @param string $line
      * @param string $shortName
@@ -226,6 +227,7 @@ class Generator
             $todo->page = str_replace('.md', '', $shortName);
             $todo->parseFromSingleTodo($line, $shortName);
             return [$todo];
+
         }
         // since complex lines could return a lot of to do's, have to use a static function
         if ($this->isRepeatingTodo($line)) {
@@ -261,5 +263,21 @@ class Generator
             }
         }
         return false;
+    }
+
+    /**
+     *
+     */
+    private function parseTagConfig(): void
+    {
+        $this->tagConfig = [];
+        $config          = $_ENV['TAG_DIVISION'];
+        $entries         = explode('|', $config);
+        foreach ($entries as $line) {
+            $parts                  = explode(':', $line);
+            $tags                   = explode(',', $parts[0]);
+            $page                   = $parts[1];
+            $this->tagConfig[$page] = $tags;
+        }
     }
 }
