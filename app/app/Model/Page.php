@@ -152,14 +152,14 @@ class Page
             10  => 50,
             20  => 10,
             30  => 2,
-            50  => 0,
-            100 => 0,
+            50  => 2,
+            100 => 1,
         ];
         $total   = 0;
 
         /** @var Todo $todo */
         foreach ($this->todos as $todo) {
-            if (false === $todo->repeater) {
+            if (false === $todo->repeater && 'TODO' === $todo->type) {
                 $weight = $weights[$todo->priority];
                 $total  += $weight;
             }
@@ -182,9 +182,6 @@ class Page
             }
         }
 
-        //        if ($this->hasTag('ordina') && $this->hasTag('people')) {
-        //            return '5. Ordina people';
-        //        }
         return 'zz - Onbekend';
     }
 

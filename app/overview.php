@@ -52,7 +52,7 @@ $generator = new Generator();
 $config    = [
     'cache'     => __DIR__ . '/cache',
     'local_directory' => $_ENV['NEXTCLOUD_LOCAL_DIRECTORY'],
-    'use_cache'       => true,
+    'use_cache'       => 'never',
 ];
 $generator->setConfiguration($config);
 $generator->parse();
@@ -147,7 +147,7 @@ ksort($pageList);
     <h1>TODO</h1>
     <div class="row">
         <div class="col-lg-6">
-            <h2>Lijst <a class="small text-muted show-all" style="display:none;" href="#">laat alles zien</a></h2>
+            <h2>Lijst <a class="small text-muted show-all" style="display:none;text-decoration: none;" href="#">(laat alles zien)</a></h2>
             <?php
             foreach ($list
 
@@ -198,19 +198,12 @@ ksort($pageList);
                             if (0 === $page->getWeight()) { ?>class="text-muted"<?php
                         } ?> >
                             <td>
-                                <?php
-                                if (0 !== $page->getWeight()) { ?>
-                                <a href="#" style="text-decoration: none;" class="filter-page" data-page="<?php
+                                <a href="#" style="text-decoration: none;" class="<?php if(0===$page->getWeight()) { ?>text-muted<?php } ?> filter-page" data-page="<?php
                                 echo $page->getClass(); ?>">
                                     <?php
-                                    } ?>
-                                    <?php
                                     echo $page->title ?>
-                                    <?php
-                                    if (0 !== $page->getWeight()) { ?>
                                 </a>
-                            <?php
-                            } ?>
+
                             </td>
                             <td>
                                 <span class="badge bg-light text-dark rounded-pill">
