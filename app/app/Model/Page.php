@@ -100,6 +100,7 @@ class Page
     public static function asClass(string $title): string
     {
         $search = [' ', '(', ')'];
+
         return strtolower(str_replace($search, '-', $title));
     }
 
@@ -113,6 +114,7 @@ class Page
 
     /**
      * @param int|null $prio
+     *
      * @return int
      */
     public function prioCount(?int $prio): int
@@ -126,6 +128,7 @@ class Page
                     $count++;
                 }
             }
+
             return $count;
         }
 
@@ -136,6 +139,7 @@ class Page
                 $count++;
             }
         }
+
         return $count;
     }
 
@@ -160,6 +164,7 @@ class Page
                 $total  += $weight;
             }
         }
+
         return $total;
     }
 
@@ -177,14 +182,15 @@ class Page
             }
         }
 
-//        if ($this->hasTag('ordina') && $this->hasTag('people')) {
-//            return '5. Ordina people';
-//        }
+        //        if ($this->hasTag('ordina') && $this->hasTag('people')) {
+        //            return '5. Ordina people';
+        //        }
         return 'zz - Onbekend';
     }
 
     /**
      * @param string $tag
+     *
      * @return bool
      */
     private function hasTag(string $tag): bool
@@ -194,6 +200,7 @@ class Page
 
     /**
      * @param array $tags
+     *
      * @return bool
      */
     private function hasAllTags(array $tags): bool
@@ -204,6 +211,45 @@ class Page
                 $count++;
             }
         }
+
         return $count === count($tags);
+    }
+
+    /**
+     * @param array $page
+     *
+     * @return static
+     */
+    public static function fromArray(array $page, $tagConfig): self
+    {
+        $object        = new self;
+        $object->setTagConfig($tagConfig);
+        $object->title = $page['title'];
+        $object->tags  = $page['tags'];
+        $todos         = [];
+        foreach ($page['todos'] as $todo) {
+            $todos[] = Todo::fromArray($todo);
+        }
+        $object->setTodos($todos);
+
+        return $object;
+    }
+
+    /**
+     * @return array
+     */
+    public function toArray(): array
+    {
+        $arr = [
+            'title' => $this->title,
+            'tags'  => $this->tags,
+            'todos' => [],
+        ];
+        /** @var Todo $todo */
+        foreach ($this->todos as $todo) {
+            $arr['todos'][] = $todo->toArray();
+        }
+
+        return $arr;
     }
 }

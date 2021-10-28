@@ -62,6 +62,7 @@ class Todo
     /**
      * @param string $line
      * @param string $shortName
+     *
      * @return array
      */
     public static function parseRepeatingTodo(string $line, string $shortName): array
@@ -94,7 +95,7 @@ class Todo
         $parts = explode($separator, $dateString);
         // first date is this one:
         $dateObject = Carbon::createFromFormat('!Y-m-d D', trim($parts[0]), $_ENV['TZ']);
-        $period     = (int) $parts[1][0];
+        $period     = (int)$parts[1][0];
 
         // repeater is '1w' or '2d' or whatever.
         switch ($parts[1][1]) {
@@ -122,11 +123,13 @@ class Todo
             }
             $start->$func($period);
         }
+
         return $array;
     }
 
     /**
      * @param string $line
+     *
      * @return array
      */
     public static function parseFromComplexTodo(string $line, string $shortName): array
@@ -164,6 +167,7 @@ class Todo
                 $todo->date = $dateObject;
             }
         }
+
         return [$todo];
     }
 
@@ -173,10 +177,11 @@ class Todo
      */
     public function getPageClass(): string
     {
-        if('' === $this->page) {
+        if ('' === $this->page) {
             var_dump($this);
             exit;
         }
+
         return Page::asClass($this->page);
     }
 
@@ -250,6 +255,7 @@ class Todo
         if (30 === $this->priority) {
             return '<span class="badge bg-success">C</span>';
         }
+
         return '<span class="badge bg-info">?</span>';
     }
 
@@ -273,5 +279,35 @@ class Todo
 
         // add type to $type with the right color:
         return sprintf('<span class="badge %s">%s</span>', $todoTypes[$this->keyword], $this->keyword);
+    }
+
+    public static function fromArray(array $array): self
+    {
+        $todo           = new self;
+        $todo->type     = $array['type'];
+        $todo->keyword  = $array['keyword'];
+        $todo->page     = $array['page'];
+        $todo->text     = $array['text'];
+        $todo->date     = $array['date'] ? Carbon::createFromFormat(Carbon::W3C, $array['date']) : null;
+        $todo->priority = $array['priority'];
+        $todo->repeater = $array['repeater'];
+
+        return $todo;
+    }
+
+    /**
+     * @return array
+     */
+    public function toArray(): array
+    {
+        return [
+            'type'     => $this->type,
+            'keyword'  => $this->keyword,
+            'page'     => $this->page,
+            'text'     => $this->text,
+            'date'     => $this->date?->toW3cString(),
+            'priority' => $this->priority,
+            'repeater' => $this->repeater,
+        ];
     }
 }

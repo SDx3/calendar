@@ -202,41 +202,6 @@ class Todos
     }
 
     /**
-     * @return bool
-     * @throws JsonException
-     */
-    private function cacheValid(): bool
-    {
-        if (!file_exists($this->cacheFile)) {
-            $this->debug('TodoGenerator cache not valid because file does not exist.');
-
-            return false;
-        }
-        if ('never' === $this->configuration['use_cache']) {
-            $this->debug('TodoGenerator cache not valid because set to "never".');
-
-            return false;
-        }
-        if ('always' === $this->configuration['use_cache']) {
-            $this->debug('TodoGenerator cache valid because set to "always".');
-
-            return true;
-        }
-        $content = file_get_contents($this->cacheFile);
-        $json    = json_decode($content, true, 8, JSON_THROW_ON_ERROR);
-        $moment  = $json['moment'];
-        if (time() - $moment < 3599) {
-            $this->debug('TodoGenerator cache valid because young file');
-
-            return true;
-        }
-        $this->debug('TodoGenerator cache invalid because old file.');
-
-        return false;
-    }
-
-
-    /**
      * @throws JsonException
      */
     private function loadFromCache(): void

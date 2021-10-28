@@ -19,11 +19,10 @@ class Generator
 {
     use SharedTraits;
 
-    private string $cacheFile;
     private array  $configuration;
-    //private array  $laters;
     private array $pages;
     private array $tagConfig;
+    private string $cacheFile;
 
     //private array  $todos;
 
@@ -48,15 +47,51 @@ class Generator
      */
     public function parse(): void
     {
-        $directories = [
-            sprintf('%s/pages', $this->configuration['local_directory']),
-            sprintf('%s/journals', $this->configuration['local_directory']),
-        ];
+        $valid = $this->cacheValid();
+        if (!$valid) {
+            $directories = [
+                sprintf('%s/pages', $this->configuration['local_directory']),
+                sprintf('%s/journals', $this->configuration['local_directory']),
+            ];
 
-        /** @var string $directory */
-        foreach ($directories as $directory) {
-            $this->debug(sprintf('TodoGenerator will locally parse %s', $directory));
-            $this->loadDirectory($directory);
+            /** @var string $directory */
+            foreach ($directories as $directory) {
+                $this->debug(sprintf('TodoGenerator will locally parse %s', $directory));
+                $this->loadDirectory($directory);
+            }
+            $this->saveToCache();
+        }
+        if ($valid) {
+            $this->loadFromCache();
+        }
+    }
+
+    private function loadFromCache(): void
+    {
+        $this->debug('TodoGenerator loaded JSON from cache.');
+        $content     = file_get_contents($this->cacheFile);
+        $json        = json_decode($content, true, 8, JSON_THROW_ON_ERROR);
+        foreach($json['pages'] as $page) {
+            $this->pages[] = Page::fromArray($page, $this->tagConfig);
+        }
+    }
+
+    /**
+     *
+     */
+    private function saveToCache(): void
+    {
+        $data   = [
+            'moment' => time(),
+            'pages'   => [],
+        ];
+        /** @var Page $page */
+        foreach($this->pages as $page) {
+            $data['pages'][] = $page->toArray();
+        }
+        $result = file_put_contents($this->cacheFile, json_encode($data, JSON_PRETTY_PRINT));
+        if (false === $result) {
+            die('Could not write to cache.');
         }
     }
 
@@ -239,7 +274,7 @@ class Generator
     public function setConfiguration(array $configuration): void
     {
         $this->configuration = $configuration;
-        $this->cacheFile     = sprintf('%s/%s', $this->configuration['cache'], 'todo-local.json');
+        $this->cacheFile     = sprintf('%s/%s', $this->configuration['cache'], 'todo-pages.json');
     }
 
     /**

@@ -31,6 +31,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 
 use App\Model\Page;
 use App\Model\Todo;
+use App\Todo\Chart;
 use App\Todo\Generator;
 use Dotenv\Dotenv;
 
@@ -49,17 +50,18 @@ if ($_GET['secret'] !== $_ENV['CALENDAR_SECRET']) {
 
 $generator = new Generator();
 $config    = [
-    'cache'           => '.',
+    'cache'     => __DIR__ . '/cache',
     'local_directory' => $_ENV['NEXTCLOUD_LOCAL_DIRECTORY'],
     'use_cache'       => true,
 ];
-
 $generator->setConfiguration($config);
 $generator->parse();
 $pages = $generator->getPages();
 
-$list = [];
+$chartConfig = Chart::generate($pages);
 
+
+$list = [];
 
 /** @var \App\Model\Page $page */
 foreach ($pages as $page) {
@@ -101,7 +103,7 @@ foreach ($list as $key => $info) {
 }
 
 
-// sort pages by type, then count todo's by priority:
+// sort pages by type, then count to do's by priority:
 /** @var \App\Model\Page $page */
 $pageList = [];
 foreach ($pages as $page) {
@@ -170,6 +172,10 @@ ksort($pageList);
             } ?>
         </div>
         <div class="col-lg-6">
+            <h2>Verdeling</h2>
+            <div style="width:600px;height:200px;">
+            <canvas id="myChart" width="600" style="width:600px;height:200px;"height="200"></canvas>
+            </div>
             <h2>Dossiers</h2>
             <?php
             foreach ($pageList as $set) { ?>
@@ -238,13 +244,25 @@ ksort($pageList);
 
 
 </div>
-<script src="./lib/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+<script type="text/javascript">
+    var chartConfig = <?php echo json_encode($chartConfig);?>;
+</script>
+<script src="./lib/jquery-3.6.0.min.js" type="text/javascript"></script>
+<script src="./lib/chart.min.js" type="text/javascript"></script>
 <script type="text/javascript">
     $(function () {
         "use strict";
         $('.filter-page').click(filterTodo);
         $('.show-all').click(showAll);
+        plotChart();
     });
+
+    function plotChart() {
+        const ctx = document.getElementById('myChart');
+        const myChart = new Chart(ctx, chartConfig);
+    }
+
+
 
     function showAll() {
         $('.show-all').hide();
