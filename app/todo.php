@@ -32,6 +32,8 @@ require_once __DIR__ . '/vendor/autoload.php';
 use App\Calendar\Todos;
 use Dotenv\Dotenv;
 use GuzzleHttp\Exception\GuzzleException;
+use Monolog\Handler\StreamHandler;
+use Monolog\Logger;
 
 $dotenv = Dotenv::createImmutable(__DIR__);
 $dotenv->load();
@@ -60,6 +62,15 @@ $config    = [
 ];
 
 $generator->setConfiguration($config);
+
+
+
+// create logger
+// create a log channel
+$log = new Logger('name');
+$log->pushHandler(new StreamHandler('php://stdout', Logger::DEBUG));
+//$generator->setLogger($log);
+
 
 try {
     $generator->parseTodos();

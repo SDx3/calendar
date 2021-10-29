@@ -24,9 +24,9 @@
 
 namespace App\Calendar;
 
+use App\Model\Todo;
 use App\SharedTraits;
 use Carbon\Carbon;
-use DateTimeInterface;
 use DOMDocument;
 use DOMElement;
 use Eluceo\iCal\Domain\Entity\Calendar;
@@ -157,25 +157,21 @@ class Todos
     private function groupItemsCalendar(): array
     {
         $newSet = [];
-        /** @var array $item */
+        /** @var Todo $item */
         foreach ($this->todos as $item) {
-            if (null === $item['date']) {
+            if (null === $item->date) {
                 continue;
             }
             // separate list of short to do's.
-            if (isset($item['short']) && $item['short']) {
-                continue;
-            }
-            $date    = Carbon::createFromFormat(DateTimeInterface::W3C, $item['date'], 'Europe/Amsterdam');
-            $dateStr = $date->format('Y-m-d', 'Europe/Amsterdam');
+            $dateStr = $item->date->format('Y-m-d', 'Europe/Amsterdam');
 
             $newSet[$dateStr]   = $newSet[$dateStr] ?? [];
             $newSet[$dateStr][] = [
-                'page'     => $item['page'],
-                'todo'     => $item['todo'],
-                'label'    => $this->getTypeLabel($item['todo']),
-                'priority' => $item['priority'],
-                'repeats'  => $item['repeats'],
+                'page'     => $item->page,
+                'todo'     => $item->text,
+                'label'    => $item->keyword,
+                'priority' => $item->priority,
+                'repeats'  => $item->repeater,
             ];
         }
         ksort($newSet);
@@ -208,9 +204,12 @@ class Todos
     private function loadFromCache(): void
     {
         $this->debug('TodoGenerator loaded JSON from cache.');
-        $content     = file_get_contents($this->cacheFile);
-        $json        = json_decode($content, true, 8, JSON_THROW_ON_ERROR);
-        $this->todos = $json['todo'];
+        $content = file_get_contents($this->cacheFile);
+        $json    = json_decode($content, true, 8, JSON_THROW_ON_ERROR);
+        /** @var array $array */
+        foreach ($json['todo'] as $array) {
+            $this->todos[] = Todo::fromArray($array);
+        }
     }
 
     /**
@@ -250,7 +249,7 @@ class Todos
         $res    = $client->request('PROPFIND', $url, $opts);
         $string = (string) $res->getBody();
         $array  = $this->XMLtoArray($string);
-        if(!array_key_exists('d:multistatus', $array)) {
+        if (!array_key_exists('d:multistatus', $array)) {
             var_dump($string);
             var_dump($array);
             exit;
@@ -345,7 +344,10 @@ class Todos
         $parts     = explode('/', $filename);
         $shortName = urldecode($parts[count($parts) - 1]);
 
+
         if ('md' === $ext) {
+
+            $shortName = substr($shortName,0,-3);
             // get file content.
             $url         = sprintf('https://%s%s', $_ENV['NEXTCLOUD_HOST'], $filename);
             $fileRequest = $client->get($url, $opts);
@@ -380,15 +382,21 @@ class Todos
         }
         $dom = new DOMDocument();
         $dom->loadHtml($html);
+        $result = [];
         /** @var DOMElement $listItem */
         foreach ($dom->getElementsByTagName('li') as $listItem) {
             $text = $listItem->textContent;
             if (str_starts_with($text, 'TODO ')) {
                 // loop over each line in markdown file
-                $this->processTodoLine(trim($text), $shortName);
+                $todos = $this->processTodoLine(trim($text), $shortName);
+                if (0 === count($todos)) {
+                    $this->debug($text);
+                    $this->debug('Parsing line resulted in zero todo\'s!');
+                }
+                $result = array_merge($todos, $result);
             }
-
         }
+        $this->todos = array_merge($this->todos, $result);
     }
 
     /**
@@ -396,10 +404,14 @@ class Todos
      */
     private function saveToCache(): void
     {
-        $data   = [
+        $data = [
             'moment' => time(),
-            'todo'   => $this->todos,
+            'todo'   => [],
         ];
+        /** @var Todo $todo */
+        foreach ($this->todos as $todo) {
+            $data['todo'][] = $todo->toArray();
+        }
         $result = file_put_contents($this->cacheFile, json_encode($data, JSON_PRETTY_PRINT));
         if (false === $result) {
             die('Could not write to cache.');

@@ -36,6 +36,14 @@ trait SharedTraits
     protected ?Logger $logger;
 
     /**
+     * @param Logger|null $logger
+     */
+    public function setLogger(?Logger $logger): void
+    {
+        $this->logger = $logger;
+    }
+
+    /**
      * @param string $message
      */
     protected function debug(string $message): void
