@@ -26,6 +26,7 @@ namespace App\Calendar;
 
 use App\SharedTraits;
 use Carbon\Carbon;
+use DateTimeInterface;
 use DOMDocument;
 use DOMElement;
 use Eluceo\iCal\Domain\Entity\Calendar;
@@ -165,7 +166,7 @@ class Todos
             if (isset($item['short']) && $item['short']) {
                 continue;
             }
-            $date    = Carbon::createFromFormat(Carbon::W3C, $item['date'], 'Europe/Amsterdam');
+            $date    = Carbon::createFromFormat(DateTimeInterface::W3C, $item['date'], 'Europe/Amsterdam');
             $dateStr = $date->format('Y-m-d', 'Europe/Amsterdam');
 
             $newSet[$dateStr]   = $newSet[$dateStr] ?? [];
@@ -249,6 +250,11 @@ class Todos
         $res    = $client->request('PROPFIND', $url, $opts);
         $string = (string) $res->getBody();
         $array  = $this->XMLtoArray($string);
+        if(!array_key_exists('d:multistatus', $array)) {
+            var_dump($string);
+            var_dump($array);
+            exit;
+        }
         /** @var array $file */
         foreach ($array['d:multistatus']['d:response'] as $file) {
             $this->loadFromFile($file);
@@ -408,50 +414,5 @@ class Todos
         $this->configuration = $configuration;
         $this->cacheFile     = sprintf('%s/%s', $this->configuration['cache'], 'todo.json');
     }
-
-    /**
-     * @param array  $array
-     * @param string $dateString
-     * @param string $separator
-     */
-    private function parseRepeater(array $array, string $dateString, string $separator): void
-    {
-        $today = Carbon::now($_ENV['TZ'])->startOfDay();
-        $end   = Carbon::now($_ENV['TZ']);
-        $end->addMonths(3);
-
-        // lazy split to get repeater in place
-        $parts = explode($separator, $dateString);
-
-        // first date is this one:
-        $dateObject = Carbon::createFromFormat('!Y-m-d D', trim($parts[0]), $_ENV['TZ']);
-        $period     = (int) $parts[1][0];
-
-        // repeater is '1w' or '2d' or whatever.
-        switch ($parts[1][1]) {
-            default:
-                die(sprintf('Cant handle period "%s"', $parts[1][1]));
-            case 'w':
-                $func = 'addWeeks';
-                break;
-            case 'm':
-                $func = 'addMonths';
-                break;
-        }
-        $start = clone $dateObject;
-        while ($start <= $end) {
-            //echo 'Start is now ' . $start->toRfc2822String().'<br>';
-            if ($start >= $today) {
-                //echo '<strong>Start is bigger</strong> than today! ' . $today->toRfc2822String().'<br>';
-                // add to do!
-                $currentTodo            = $array;
-                $currentTodo['repeats'] = true;
-                $currentTodo['date']    = $start->toW3cString();
-                $this->todos[]          = $currentTodo;
-            }
-            $start->$func($period);
-        }
-    }
-
 
 }

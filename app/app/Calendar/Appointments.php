@@ -104,7 +104,7 @@ class Appointments
         $json          = [];
         $validCalendar = false;
         foreach ($list as $file) {
-            if ('json' === substr($file, -4)) {
+            if (str_ends_with($file, 'json')) {
                 $fullFile = sprintf('%s%s%s', $this->directory, DIRECTORY_SEPARATOR, $file);
                 $current  = [];
                 // read file
@@ -217,9 +217,6 @@ class Appointments
             case 16:
                 // is a thursday and is a valid moment for coffee slot
                 return $date->isThursday() && 0 !== $this->coffeeSlot($date);
-            case 17:
-
-                break;
         }
     }
 

@@ -37,7 +37,7 @@ The fields are as follows:
 * `calendar`. Allows you to separate different types of calendar, like "personal" and "work"
 * `title`, the title as it will appear in your calendar app.
 * `description`, the description as it will appear in your calendar app.
-* `pattern`, this is the repetition pattern the appointment will follow. These are hard coded references [to this function](app/app/CalendarGenerator.php#L188), so check out the code to see which repetition you need.
+* `pattern`, this is the repetition pattern the appointment will follow. These are hard coded references [to this function](app/app/Calendar/Appointments.php#L171), so check out the code to see which repetition you need.
 * `start_time`, the start time of the appointments.
 * `end_time`, the end time of the appointments
 * `stacked`, see below.
@@ -58,7 +58,7 @@ These "stacks" will include appointments from other calendars as well. If you st
 
 ## Extra repetitions
 
-If you need extra repetitions, add them [to this function](app/app/CalendarGenerator.php#L188) under a new number and send a PR.
+If you need extra repetitions, add them [to this function](app/app/Calendar/Appointments.php#L171) under a new number and send a PR.
 
 ## Generate calendar
 

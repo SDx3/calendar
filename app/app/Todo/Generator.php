@@ -7,6 +7,7 @@ use App\Model\Todo;
 use App\SharedTraits;
 use DOMDocument;
 use DOMElement;
+use JsonException;
 use League\CommonMark\Environment\Environment;
 use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
 use League\CommonMark\Extension\GithubFlavoredMarkdownExtension;
@@ -20,8 +21,8 @@ class Generator
     use SharedTraits;
 
     private array  $configuration;
-    private array $pages;
-    private array $tagConfig;
+    private array  $pages;
+    private array  $tagConfig;
     private string $cacheFile;
 
     //private array  $todos;
@@ -44,6 +45,7 @@ class Generator
 
 
     /**
+     * @throws JsonException
      */
     public function parse(): void
     {
@@ -66,12 +68,15 @@ class Generator
         }
     }
 
+    /**
+     * @throws JsonException
+     */
     private function loadFromCache(): void
     {
         $this->debug('TodoGenerator loaded JSON from cache.');
-        $content     = file_get_contents($this->cacheFile);
-        $json        = json_decode($content, true, 8, JSON_THROW_ON_ERROR);
-        foreach($json['pages'] as $page) {
+        $content = file_get_contents($this->cacheFile);
+        $json    = json_decode($content, true, 8, JSON_THROW_ON_ERROR);
+        foreach ($json['pages'] as $page) {
             $this->pages[] = Page::fromArray($page, $this->tagConfig);
         }
     }
@@ -81,12 +86,12 @@ class Generator
      */
     private function saveToCache(): void
     {
-        $data   = [
+        $data = [
             'moment' => time(),
-            'pages'   => [],
+            'pages'  => [],
         ];
         /** @var Page $page */
-        foreach($this->pages as $page) {
+        foreach ($this->pages as $page) {
             $data['pages'][] = $page->toArray();
         }
         $result = file_put_contents($this->cacheFile, json_encode($data, JSON_PRETTY_PRINT));
@@ -203,10 +208,11 @@ class Generator
                 $laters = $this->processLaterLine(trim($text), $shortName);
                 $result = array_merge($laters, $result);
             }
-            if (str_starts_with($text, 'DONE ')) {
-                // loop over each line in markdown file
-                //$this->processLaterLine(trim($text), $shortName);
-            }
+//            if (str_starts_with($text, 'DONE ')) {
+//                // loop over each line in markdown file
+//                //$this->processLaterLine(trim($text), $shortName);
+//                die('Cannot handle this case.');
+//            }
         }
         return $result;
     }
@@ -216,6 +222,7 @@ class Generator
      *
      * @param string $line
      * @param string $shortName
+     * @return array
      */
     protected function processLaterLine(string $line, string $shortName): array
     {
@@ -237,34 +244,9 @@ class Generator
         // since complex lines could return a lot of to do's, have to use a static function
         if ($this->isRepeatingTodo($shortLine)) {
             die('here A');
-            return Todo::parseRepeatingTodo($line, $shortName);
+            // return Todo::parseRepeatingTodo($line, $shortName);
         }
 
-        return Todo::parseFromComplexTodo($line, $shortName);
-    }
-
-    /**
-     * Process a line that alreadt known to be a to do item.
-     *
-     * @param string $line
-     * @param string $shortName
-     */
-    protected function processTodoLine(string $line, string $shortName): array
-    {
-        $parts = explode("\n", $line);
-        if (1 === count($parts)) {
-            // it's a basic to do with no date
-            // add it to array of items but keep the date NULL:
-            $todo       = new Todo;
-            $todo->page = str_replace('.md', '', $shortName);
-            $todo->parseFromSingleTodo($line, $shortName);
-            return [$todo];
-
-        }
-        // since complex lines could return a lot of to do's, have to use a static function
-        if ($this->isRepeatingTodo($line)) {
-            return Todo::parseRepeatingTodo($line, $shortName);
-        }
         return Todo::parseFromComplexTodo($line, $shortName);
     }
 
@@ -277,25 +259,6 @@ class Generator
         $this->cacheFile     = sprintf('%s/%s', $this->configuration['cache'], 'todo-pages.json');
     }
 
-    /**
-     * @param string $line
-     * @return bool
-     */
-    private function isRepeatingTodo(string $line): bool
-    {
-        $parts = explode("\n", $line);
-        foreach ($parts as $part) {
-            if (str_starts_with($part, 'SCHEDULED')) {
-                if (str_contains($part, '++')) {
-                    return true;
-                }
-                if (str_contains($part, '.+')) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
 
     /**
      *

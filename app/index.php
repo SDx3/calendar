@@ -53,7 +53,12 @@ if (false === $calendar) {
     exit;
 }
 
-$generator = new Appointments(sprintf('%s/schedules',__DIR__), $calendar);
+try {
+    $generator = new Appointments(sprintf('%s/schedules', __DIR__), $calendar);
+} catch (JsonException $e) {
+    echo $e->getMessage();
+    exit;
+}
 
 $generator->setStart($start);
 $generator->setEnd($end);

@@ -27,6 +27,8 @@ namespace App\Model;
 use App\SharedTraits;
 use Carbon\Carbon;
 use Carbon\Exceptions\InvalidFormatException;
+use DateTimeInterface;
+use JetBrains\PhpStorm\ArrayShape;
 
 class Todo
 {
@@ -88,14 +90,14 @@ class Todo
 
         $today = Carbon::now($_ENV['TZ'])->startOfDay();
         $end   = Carbon::now($_ENV['TZ']);
-        $end->addMonths(1);
+        $end->addMonth();
 
 
         // lazy split to get repeater in place
         $parts = explode($separator, $dateString);
         // first date is this one:
         $dateObject = Carbon::createFromFormat('!Y-m-d D', trim($parts[0]), $_ENV['TZ']);
-        $period     = (int)$parts[1][0];
+        $period     = (int) $parts[1][0];
 
         // repeater is '1w' or '2d' or whatever.
         switch ($parts[1][1]) {
@@ -129,7 +131,7 @@ class Todo
 
     /**
      * @param string $line
-     *
+     * @param string $shortName
      * @return array
      */
     public static function parseFromComplexTodo(string $line, string $shortName): array
@@ -151,7 +153,7 @@ class Todo
                 try {
                     $dateObject = Carbon::createFromFormat('!Y-m-d D', $dateString, $_ENV['TZ']);
                 } catch (InvalidFormatException $e) {
-                    echo 'Could not parse: "' . htmlentities($dateString) . '"!';
+                    echo 'Could not parse: "' . htmlentities($dateString) . ':"' . $e->getMessage() . '!';
                     exit;
                 }
                 $todo->date = $dateObject;
@@ -161,7 +163,7 @@ class Todo
                 try {
                     $dateObject = Carbon::createFromFormat('!Y-m-d D', $dateString, $_ENV['TZ']);
                 } catch (InvalidFormatException $e) {
-                    echo 'Could not parse: "' . htmlentities($dateString) . '"!';
+                    echo 'Could not parse: "' . htmlentities($dateString) . '": '.$e->getMessage().'!';
                     exit;
                 }
                 $todo->date = $dateObject;
@@ -288,7 +290,7 @@ class Todo
         $todo->keyword  = $array['keyword'];
         $todo->page     = $array['page'];
         $todo->text     = $array['text'];
-        $todo->date     = $array['date'] ? Carbon::createFromFormat(Carbon::W3C, $array['date']) : null;
+        $todo->date     = $array['date'] ? Carbon::createFromFormat(DateTimeInterface::W3C, $array['date']) : null;
         $todo->priority = $array['priority'];
         $todo->repeater = $array['repeater'];
 
@@ -298,6 +300,7 @@ class Todo
     /**
      * @return array
      */
+    #[ArrayShape(['type' => "string", 'keyword' => "string", 'page' => "string", 'text' => "string", 'date' => "string", 'priority' => "int", 'repeater' => "bool"])]
     public function toArray(): array
     {
         return [

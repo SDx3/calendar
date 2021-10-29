@@ -24,6 +24,9 @@
 
 namespace App\Model;
 
+use JetBrains\PhpStorm\ArrayShape;
+use JetBrains\PhpStorm\Pure;
+
 class Page
 {
     public string $title;
@@ -171,6 +174,7 @@ class Page
     /**
      * @return string
      */
+    #[Pure]
     public function getType(): string
     {
         if (0 === count($this->tags)) {
@@ -200,6 +204,7 @@ class Page
      *
      * @return bool
      */
+    #[Pure]
     private function hasAllTags(array $tags): bool
     {
         $count = 0;
@@ -214,7 +219,7 @@ class Page
 
     /**
      * @param array $page
-     *
+     * @param       $tagConfig
      * @return static
      */
     public static function fromArray(array $page, $tagConfig): self
@@ -235,6 +240,7 @@ class Page
     /**
      * @return array
      */
+    #[ArrayShape(['title' => "string", 'tags' => "array", 'todos' => "array"])]
     public function toArray(): array
     {
         $arr = [

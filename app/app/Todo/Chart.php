@@ -5,6 +5,7 @@ namespace App\Todo;
 use App\Model\Page;
 use App\Model\Todo;
 use Carbon\Carbon;
+use JetBrains\PhpStorm\ArrayShape;
 
 class Chart
 {
@@ -13,6 +14,7 @@ class Chart
      *
      * @return array
      */
+    #[ArrayShape(['type' => "string", 'data' => "array", 'options' => "array"])]
     public static function generate(array $pages): array
     {
         $keys = [
@@ -48,9 +50,8 @@ class Chart
         foreach ($arr as $info) {
             if ($info['date']->lte($date)) {
                 $labels[] = str_replace('  ', ' ', trim($info['date']->formatLocalized('%a %e-%b')));
-                $currentIndex = count($labels)-1;
                 // add data, depending on priority:
-                foreach($keys as $prio => $keyIndex) {
+                foreach($keys as $keyIndex) {
                     if(isset($info[$keyIndex])) {
                         $config['data']['datasets'][$keyIndex]['data'][] = $info[$keyIndex];
                     }
@@ -58,22 +59,14 @@ class Chart
                         $config['data']['datasets'][$keyIndex]['data'][] = 0;
                     }
                 }
-
-//                foreach ($info as $index => $value) {
-//                    if ('date' !== $index) {
-//                        $config['data']['datasets'][$index]['data'][$currentIndex] = $value;
-//                    }
-//                }
             }
         }
         $config['data']['labels'] = $labels;
-//        var_dump($config['data']['labels']);
-//        var_dump($config['data']['datasets']);
-//        exit;
 
         return $config;
     }
 
+    #[ArrayShape(['type' => "string", 'data' => "array", 'options' => "array"])]
     private static function defaultConfig(): array
     {
         /**
@@ -87,7 +80,7 @@ class Chart
          * ],
          * @returns {boolean}
          */
-        $config = [
+        return [
             'type'    => 'bar',
             'data'    => [
                 'labels'   => ['a', 'b', 'c'],
@@ -133,7 +126,5 @@ class Chart
                 ],
             ],
         ];
-
-        return $config;
     }
 }

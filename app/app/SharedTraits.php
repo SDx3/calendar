@@ -24,6 +24,7 @@
 
 namespace App;
 
+use App\Model\Todo;
 use JsonException;
 use Monolog\Logger;
 
@@ -41,6 +42,54 @@ trait SharedTraits
     {
         $this->logger?->debug($message);
     }
+
+    /**
+     * Process a line that already known to be a to do item.
+     *
+     * @param string $line
+     * @param string $shortName
+     * @return array
+     */
+    protected function processTodoLine(string $line, string $shortName): array
+    {
+        $parts = explode("\n", $line);
+        if (1 === count($parts)) {
+            // it's a basic to do with no date
+            // add it to array of items but keep the date NULL:
+            $todo       = new Todo;
+            $todo->page = str_replace('.md', '', $shortName);
+            $todo->parseFromSingleTodo($line, $shortName);
+            return [$todo];
+
+        }
+        // since complex lines could return a lot of to do's, have to use a static function
+        if ($this->isRepeatingTodo($line)) {
+            return Todo::parseRepeatingTodo($line, $shortName);
+        }
+        return Todo::parseFromComplexTodo($line, $shortName);
+    }
+
+
+    /**
+     * @param string $line
+     * @return bool
+     */
+    protected function isRepeatingTodo(string $line): bool
+    {
+        $parts = explode("\n", $line);
+        foreach ($parts as $part) {
+            if (str_starts_with($part, 'SCHEDULED')) {
+                if (str_contains($part, '++')) {
+                    return true;
+                }
+                if (str_contains($part, '.+')) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
 
     /**
      * @param string $appointment

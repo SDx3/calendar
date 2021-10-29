@@ -55,7 +55,12 @@ $config    = [
     'use_cache'       => 'never',
 ];
 $generator->setConfiguration($config);
-$generator->parse();
+try {
+    $generator->parse();
+} catch (JsonException $e) {
+    echo $e->getMessage();
+    exit;
+}
 $pages = $generator->getPages();
 
 $chartConfig = Chart::generate($pages);
@@ -63,9 +68,9 @@ $chartConfig = Chart::generate($pages);
 
 $list = [];
 
-/** @var \App\Model\Page $page */
+/** @var Page $page */
 foreach ($pages as $page) {
-    /** @var \App\Model\Todo $todo */
+    /** @var Todo $todo */
     foreach ($page->getTodos() as $todo) {
         $key       = '9999-99-00';
         $dateTitle = '(geen datum)';
@@ -91,7 +96,7 @@ foreach ($pages as $page) {
 }
 ksort($list);
 
-foreach ($list as $key => $info) {
+foreach ($list as $i => $info) {
     $todos = $info['todos'];
     usort($todos, function (Todo $left, Todo $right) {
         if ($left->priority == $right->priority) {
@@ -99,12 +104,12 @@ foreach ($list as $key => $info) {
         }
         return ($left->priority < $right->priority) ? -1 : 1;
     });
-    $list[$key]['todos'] = $todos;
+    $list[$i]['todos'] = $todos;
 }
 
 
 // sort pages by type, then count to do's by priority:
-/** @var \App\Model\Page $page */
+/** @var Page $page */
 $pageList = [];
 foreach ($pages as $page) {
     $type                       = $page->getType();
@@ -149,15 +154,12 @@ ksort($pageList);
         <div class="col-lg-6">
             <h2>Lijst <a class="small text-muted show-all" style="display:none;text-decoration: none;" href="#">(laat alles zien)</a></h2>
             <?php
-            foreach ($list
-
-                     as $key => $info) { ?>
-                <div class="date-block" data-date="<?php
-                echo $key; ?>">
+            foreach ($list as $i => $info) { ?>
+                <div class="date-block" data-date="<?php echo $i; ?>">
                     <h3><?php
-                        echo $info['title']; ?> (<span data-date="<?php echo $key; ?>" class="date-count"><?php
+                        echo $info['title']; ?> (<span data-date="<?php echo $i; ?>" class="date-count"><?php
                         echo count($info['todos']) ?></span>)</h3>
-                    <ol class="date-list" data-date="<?php echo $key; ?>">
+                    <ol class="date-list" data-date="<?php echo $i; ?>">
                         <?php
                         foreach ($info['todos'] as $todo) { ?>
                             <li data-page="<?php
@@ -213,18 +215,24 @@ ksort($pageList);
                             </td>
                             <td><span class="badge bg-light text-dark rounded-pill">
                                 <?php
-                                echo $page->prioCount(20); ?></td>
+                                echo $page->prioCount(20); ?>
                             </span>
+                            </td>
+
                             <td>
                                 <span class="badge bg-light text-dark rounded-pill">
                                 <?php
-                                echo $page->prioCount(30); ?></td>
+                                echo $page->prioCount(30); ?>
                             </span>
+                            </td>
+
                             <td>
                                 <span class="badge bg-light text-dark rounded-pill">
                                 <?php
-                                echo $page->prioCount(null); ?></td>
+                                echo $page->prioCount(null); ?>
                             </span>
+                            </td>
+
                         </tr>
                         <?php
                     } ?>
@@ -238,10 +246,11 @@ ksort($pageList);
 
 </div>
 <script type="text/javascript">
-    var chartConfig = <?php echo json_encode($chartConfig);?>;
+    const chartConfig = <?php echo json_encode($chartConfig);?>;
 </script>
 <script src="./lib/jquery-3.6.0.min.js" type="text/javascript"></script>
 <script src="./lib/chart.min.js" type="text/javascript"></script>
+<!--suppress JSUnresolvedFunction -->
 <script type="text/javascript">
     $(function () {
         "use strict";
@@ -252,10 +261,8 @@ ksort($pageList);
 
     function plotChart() {
         const ctx = document.getElementById('myChart');
-        const myChart = new Chart(ctx, chartConfig);
+        new Chart(ctx, chartConfig);
     }
-
-
 
     function showAll() {
         $('.show-all').hide();
@@ -266,8 +273,8 @@ ksort($pageList);
     }
 
     function filterTodo(e) {
-        var tg = $(e.currentTarget);
-        var page = tg.data('page');
+        const tg = $(e.currentTarget);
+        const page = tg.data('page');
         $('li.todo-item').hide();
         $('li.todo-item[data-page="' + page + '"]').show();
         $('.show-all').show();
@@ -283,9 +290,6 @@ ksort($pageList);
             if(0===count) {
                 $('div.date-block[data-date="'+date+'"]').hide();
             }
-            // loop all ol's and count them:
-            //console.log();
-            //class="date-list" data-date="<?php echo $key; ?>">
         });
     }
 

@@ -31,6 +31,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 
 use App\Calendar\Todos;
 use Dotenv\Dotenv;
+use GuzzleHttp\Exception\GuzzleException;
 
 $dotenv = Dotenv::createImmutable(__DIR__);
 $dotenv->load();
@@ -59,7 +60,16 @@ $config    = [
 ];
 
 $generator->setConfiguration($config);
-$generator->parseTodos();
+
+try {
+    $generator->parseTodos();
+} catch (GuzzleException $e) {
+    echo $e->getMessage();
+    exit;
+} catch (JsonException $e) {
+    echo $e->getMessage();
+    exit;
+}
 
 
 if (!$debug) {
