@@ -27,6 +27,7 @@ declare(strict_types=1);
 
 namespace App\Calendar;
 
+use App\SharedTraits;
 use Carbon\Carbon;
 use Eluceo\iCal\Domain\Entity\Calendar;
 use Eluceo\iCal\Domain\Entity\Event;
@@ -44,6 +45,8 @@ use JsonException;
  */
 class Appointments
 {
+    use SharedTraits;
+
     public const VERSION = '4.1';
     private array    $appointments;
     private Calendar $calendar;
@@ -134,12 +137,14 @@ class Appointments
      */
     public function generate(): string
     {
+        $this->debug('Now in generate()');
         $this->calendar = new Calendar;
         $timezone       = new TimeZone($_ENV['TZ']);
         $this->calendar->addTimeZone($timezone);
         // loop each day
         $current = clone $this->start;
         while ($current <= $this->end) {
+            $this->debug(sprintf('Processing %d appointments for %s', count($this->appointments), $current->toIso8601String()));
             $this->processAppointments($current);
             $current->addDay();
         }
@@ -156,7 +161,8 @@ class Appointments
     {
         /** @var array $appointment */
         foreach ($this->appointments as $appointment) {
-            if ($this->matchesDatePattern($date, $appointment['pattern'])) {
+            if ($this->matchesDatePattern($date, $appointment)) {
+                $this->debug(sprintf('Appointment "%s" matches date pattern #%d and should be today.', $appointment['title'], $appointment['pattern']));
                 $this->addAppointment($date, $appointment);
             }
         }
@@ -164,12 +170,16 @@ class Appointments
 
     /**
      * @param Carbon $date
-     * @param int    $pattern
+     * @param array  $appointment
      *
      * @return bool
      */
-    private function matchesDatePattern(Carbon $date, int $pattern): bool
+    private function matchesDatePattern(Carbon $date, array $appointment): bool
     {
+        $pattern = (int) $appointment['pattern'];
+        if (0 === $pattern) {
+            return $date->isSameDay($appointment['date']);
+        }
         switch ($pattern) {
             default:
                 return false;
@@ -286,6 +296,7 @@ class Appointments
         }
 
         if ($this->calendarName === $appointment['calendar']) {
+            $this->debug('Will add appointment to calendar.');
             $title       = $this->replaceVariables($date, $appointment['title']);
             $description = $this->generateDescription($title, $this->replaceVariables($date, $appointment['description']));
             $string      = substr(hash('sha256', sprintf('%s-%s', $date->format('Y-m-d'), $title)), 0, 16);

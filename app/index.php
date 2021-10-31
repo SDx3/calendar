@@ -30,6 +30,8 @@ require_once __DIR__ . '/vendor/autoload.php';
 use App\Calendar\Appointments;
 use Carbon\Carbon;
 use Dotenv\Dotenv;
+use Monolog\Handler\StreamHandler;
+use Monolog\Logger;
 
 $dotenv = Dotenv::createImmutable(__DIR__);
 $dotenv->load();
@@ -41,11 +43,11 @@ if ($debug) {
 
 // start of calendar
 $start = Carbon::now($_ENV['TZ']);
-$start->startOfMonth()->subMonth();
+$start->subDays(4);
 
 // end of calendar
 $end = Carbon::now($_ENV['TZ']);
-$end->addMonths(4);
+$end->addMonths(2);
 
 $calendar = $_GET['calendar'] ?? false;
 if (false === $calendar) {
@@ -59,6 +61,9 @@ try {
     echo $e->getMessage();
     exit;
 }
+$log = new Logger('index');
+$log->pushHandler(new StreamHandler(__DIR__.'/logs/index-calendar.log', Logger::DEBUG));
+//$generator->setLogger($log);
 
 $generator->setStart($start);
 $generator->setEnd($end);
