@@ -68,8 +68,8 @@ $generator->setConfiguration($config);
 // create logger
 // create a log channel
 $log = new Logger('name');
-$log->pushHandler(new StreamHandler('php://stdout', Logger::DEBUG));
-//$generator->setLogger($log);
+$log->pushHandler(new StreamHandler(__DIR__.'/logs/todo-calendar.log', Logger::DEBUG));
+$generator->setLogger($log);
 
 
 try {
