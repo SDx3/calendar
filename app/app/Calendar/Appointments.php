@@ -66,6 +66,7 @@ class Appointments
      */
     public function __construct(string $directory, string $calendar)
     {
+        $this->logger       = null;
         $this->calendarName = $calendar;
         $this->directory    = $directory;
         $this->appointments = [];
