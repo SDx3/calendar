@@ -187,10 +187,10 @@ ksort($pageList);
                     <thead>
                     <tr>
                         <th style="width:60%;">Pagina</th>
-                        <th style="width:10%;"><span class="badge bg-danger">A</span></th>
-                        <th style="width:10%;"><span class="badge bg-warning text-dark">B</span></th>
-                        <th style="width:10%;"><span class="badge bg-success">C</span></th>
-                        <th style="width:10%;"><span class="badge bg-info">?</span></th>
+                        <th style="width:10%;"><span class="badge bg-danger">🅰️</span></th>
+                        <th style="width:10%;"><span class="badge bg-warning text-dark">🟠</span></th>
+                        <th style="width:10%;"><span class="badge bg-success">🟩</span></th>
+                        <th style="width:10%;"><span class="badge bg-info">ℹ️</span></th>
                     </tr>
                     </thead>
                     <tbody>

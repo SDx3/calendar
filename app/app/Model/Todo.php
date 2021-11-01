@@ -192,7 +192,13 @@ class Todo
      */
     public function renderAsHtml(): string
     {
-        $html = $this->priorityBadge();
+        $html = '';
+        if($this->repeater) {
+            $html .= '<span class="badge bg-light">♻️</span>';
+        }
+        if(!$this->repeater) {
+            $html .= $this->priorityBadge();
+        }
         $html .= ' ';
         $html .= sprintf('<span class="badge bg-secondary">%s</span>', $this->page);
         $html .= ' ';
@@ -249,16 +255,16 @@ class Todo
     private function priorityBadge(): string
     {
         if (10 === $this->priority) {
-            return '<span class="badge bg-danger">A</span>';
+            return '<span class="badge bg-danger">🅰️</span>';
         }
         if (20 === $this->priority) {
-            return '<span class="badge bg-warning text-dark">B</span>';
+            return '<span class="badge bg-warning text-dark">🟠</span>';
         }
         if (30 === $this->priority) {
-            return '<span class="badge bg-success">C</span>';
+            return '<span class="badge bg-success">🟩</span>';
         }
 
-        return '<span class="badge bg-info">?</span>';
+        return '<span class="badge bg-info">ℹ️</span>';
     }
 
     /**
