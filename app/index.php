@@ -47,7 +47,7 @@ $start->subDays(4);
 
 // end of calendar
 $end = Carbon::now($_ENV['TZ']);
-$end->addMonths(2);
+$end->addMonths(6);
 
 $calendar = $_GET['calendar'] ?? false;
 if (false === $calendar) {

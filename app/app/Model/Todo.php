@@ -96,7 +96,7 @@ class Todo
         // lazy split to get repeater in place
         $parts = explode($separator, $dateString);
         // first date is this one:
-        $dateObject = Carbon::createFromFormat('!Y-m-d D', trim($parts[0]), $_ENV['TZ']);
+        $dateObject = Carbon::createFromFormat('!Y-m-d*', trim($parts[0]), $_ENV['TZ']);
         $period     = (int) $parts[1][0];
 
         // repeater is '1w' or '2d' or whatever.
@@ -151,7 +151,7 @@ class Todo
             if (str_starts_with($part, 'SCHEDULED')) {
                 $dateString = str_replace(['SCHEDULED: ', '<', '>'], '', $part);
                 try {
-                    $dateObject = Carbon::createFromFormat('!Y-m-d D', $dateString, $_ENV['TZ']);
+                    $dateObject = Carbon::createFromFormat('!Y-m-d*', $dateString, $_ENV['TZ']);
                 } catch (InvalidFormatException $e) {
                     echo 'Could not parse: "' . htmlentities($dateString) . ':"' . $e->getMessage() . '!';
                     exit;
@@ -161,7 +161,7 @@ class Todo
             if (str_starts_with($part, 'DEADLINE')) {
                 $dateString = str_replace(['DEADLINE: ', '<', '>'], '', $part);
                 try {
-                    $dateObject = Carbon::createFromFormat('!Y-m-d D', $dateString, $_ENV['TZ']);
+                    $dateObject = Carbon::createFromFormat('!Y-m-d*', $dateString, $_ENV['TZ']);
                 } catch (InvalidFormatException $e) {
                     echo 'Could not parse: "' . htmlentities($dateString) . '": '.$e->getMessage().'!';
                     exit;
