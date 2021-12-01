@@ -45,8 +45,6 @@ use JsonException;
  */
 class Appointments
 {
-    use SharedTraits;
-
     public const VERSION = '4.1';
     private array    $appointments;
     private Calendar $calendar;
@@ -131,6 +129,11 @@ class Appointments
             exit;
         }
         $this->appointments = $json;
+    }
+
+    private function debug(string $message): void
+    {
+        
     }
 
     /**
