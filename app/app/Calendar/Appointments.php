@@ -133,7 +133,7 @@ class Appointments
 
     private function debug(string $message): void
     {
-        
+
     }
 
     /**
@@ -223,14 +223,21 @@ class Appointments
             case 13:
                 return $date->isThursday();
             case 14:
+                // every three months starting in january
                 // is first of Jan, Apr, Jul or Nov
-                return $date->day === 1 && in_array($date->month, [1, 4, 7, 11]);
+                return $date->day === 1 && in_array($date->month, [1, 4, 7, 10]);
             case 15:
                 // is not a thursday and is a valid moment for coffee slot
                 return !$date->isThursday() && !$date->isWeekend() && 0 !== $this->coffeeSlot($date);
             case 16:
                 // is a thursday and is a valid moment for coffee slot
                 return $date->isThursday() && 0 !== $this->coffeeSlot($date);
+            case 17:
+                // every three months starting in feb
+                return $date->day === 1 && in_array($date->month, [2, 5, 8, 11]);
+            case 18:
+                // every three months starting in mar
+                return $date->day === 1 && in_array($date->month, [3, 6, 9, 12]);
         }
     }
 
