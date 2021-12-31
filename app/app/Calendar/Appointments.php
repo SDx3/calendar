@@ -55,6 +55,7 @@ class Appointments
     private array    $months;
     private Carbon   $start;
     private array    $timeSlots;
+    private Carbon   $systemStart;
 
     /**
      * @param string $directory
@@ -67,6 +68,7 @@ class Appointments
         $this->logger       = null;
         $this->calendarName = $calendar;
         $this->directory    = $directory;
+        $this->systemStart  = Carbon::createFromFormat('Y-m-d', '2022-01-01');
         $this->appointments = [];
         $this->timeSlots    = [];
         $this->months       = [
@@ -184,6 +186,15 @@ class Appointments
         if (0 === $pattern) {
             return $date->isSameDay($appointment['date']);
         }
+
+        // get weird numeric value of appointment title for semi-randomisation
+        // used in "every two months"
+        $title  = $appointment['title'] ?? '(fake title)';
+        $hash   = hash('sha256', $title);
+        $number = ord($hash[0]);
+        $count  = 60 + ($number % 14);
+
+
         switch ($pattern) {
             default:
                 return false;
@@ -238,6 +249,13 @@ class Appointments
             case 18:
                 // every three months starting in mar
                 return $date->day === 1 && in_array($date->month, [3, 6, 9, 12]);
+            case 19:
+                // every two months + a little bit
+                $diff = $date->diffInDays($this->systemStart);
+                if(0 === $diff % $count) {
+                    return true;
+                }
+                return false;
         }
     }
 
