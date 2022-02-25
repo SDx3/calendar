@@ -256,6 +256,14 @@ class Appointments
                     return true;
                 }
                 return false;
+            case 20:
+                // every three months starting in march
+                // is first of Mar, Jun, Sep or Dec
+                return $date->day === 1 && in_array($date->month, [3, 6, 9, 12]);
+            case 21:
+                return $date->isSaturday();
+            case 22:
+                return $date->isSunday();
         }
     }
 
