@@ -29,6 +29,7 @@ namespace App\Calendar;
 
 use App\SharedTraits;
 use Carbon\Carbon;
+use DateTimeZone as PhpDateTimeZone;
 use Eluceo\iCal\Domain\Entity\Calendar;
 use Eluceo\iCal\Domain\Entity\Event;
 use Eluceo\iCal\Domain\Entity\TimeZone;
@@ -38,6 +39,7 @@ use Eluceo\iCal\Domain\ValueObject\Organizer;
 use Eluceo\iCal\Domain\ValueObject\TimeSpan;
 use Eluceo\iCal\Domain\ValueObject\UniqueIdentifier;
 use Eluceo\iCal\Presentation\Factory\CalendarFactory;
+use Exception;
 use JsonException;
 
 /**
@@ -144,8 +146,14 @@ class Appointments
     public function generate(): string
     {
         $this->debug('Now in generate()');
-        $this->calendar = new Calendar;
-        $timezone       = new TimeZone($_ENV['TZ']);
+        $this->calendar  = new Calendar;
+        $phpDateTimeZone = new PhpDateTimeZone($_ENV['TZ']);
+            $timezone = TimeZone::createFromPhpDateTimeZone(
+                $phpDateTimeZone,
+                $this->start->toDateTimeImmutable(),
+                $this->end->toDateTimeImmutable()
+            );
+
         $this->calendar->addTimeZone($timezone);
         // loop each day
         $current = clone $this->start;
@@ -252,7 +260,7 @@ class Appointments
             case 19:
                 // every two months + a little bit
                 $diff = $date->diffInDays($this->systemStart);
-                if(0 === $diff % $count) {
+                if (0 === $diff % $count) {
                     return true;
                 }
                 return false;
