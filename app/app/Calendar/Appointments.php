@@ -47,7 +47,7 @@ use JsonException;
  */
 class Appointments
 {
-    public const VERSION = '4.1';
+    public const VERSION = '4.2';
     private array    $appointments;
     private Calendar $calendar;
     private string   $calendarName;
