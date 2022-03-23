@@ -354,7 +354,7 @@ class Appointments
             $organizer   = new Organizer(new EmailAddress($_ENV['ORGANIZER_MAIL']), $_ENV['ORGANIZER_NAME'], null, null);
             $loc         = null;
             if (null !== $location) {
-                $loc = new Location('Thuis of op kantoor.');
+                $loc = new Location($location);
             }
 
             $vEvent = new Event($uid);
