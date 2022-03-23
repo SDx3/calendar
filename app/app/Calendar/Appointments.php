@@ -347,7 +347,7 @@ class Appointments
             $string      = substr(hash('sha256', sprintf('%s-%s', $date->format('Y-m-d'), $title)), 0, 16);
             $uid         = new UniqueIdentifier($string);
             $occurrence  = new TimeSpan(new DateTime($appointmentStart->toDateTime(), true), new DateTime($appointmentEnd->toDateTime(), true));
-            $organizer   = new Organizer(new EmailAddress($_ENV['ORGANIZER_MAIL']), $_ENV['ORGANIZER_NAME'], null, new EmailAddress($_ENV['ORGANIZER_MAIL']));
+            $organizer   = new Organizer(new EmailAddress($_ENV['ORGANIZER_MAIL']), $_ENV['ORGANIZER_NAME'], null, null);
 
             $vEvent = new Event($uid);
             $vEvent->setOrganizer($organizer)
