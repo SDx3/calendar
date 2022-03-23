@@ -35,11 +35,11 @@ use Eluceo\iCal\Domain\Entity\Event;
 use Eluceo\iCal\Domain\Entity\TimeZone;
 use Eluceo\iCal\Domain\ValueObject\DateTime;
 use Eluceo\iCal\Domain\ValueObject\EmailAddress;
+use Eluceo\iCal\Domain\ValueObject\Location;
 use Eluceo\iCal\Domain\ValueObject\Organizer;
 use Eluceo\iCal\Domain\ValueObject\TimeSpan;
 use Eluceo\iCal\Domain\ValueObject\UniqueIdentifier;
 use Eluceo\iCal\Presentation\Factory\CalendarFactory;
-use Exception;
 use JsonException;
 
 /**
@@ -47,7 +47,7 @@ use JsonException;
  */
 class Appointments
 {
-    public const VERSION = '4.2';
+    public const VERSION = '4.3';
     private array    $appointments;
     private Calendar $calendar;
     private string   $calendarName;
@@ -148,11 +148,11 @@ class Appointments
         $this->debug('Now in generate()');
         $this->calendar  = new Calendar;
         $phpDateTimeZone = new PhpDateTimeZone($_ENV['TZ']);
-            $timezone = TimeZone::createFromPhpDateTimeZone(
-                $phpDateTimeZone,
-                $this->start->toDateTimeImmutable(),
-                $this->end->toDateTimeImmutable()
-            );
+        $timezone        = TimeZone::createFromPhpDateTimeZone(
+            $phpDateTimeZone,
+            $this->start->toDateTimeImmutable(),
+            $this->end->toDateTimeImmutable()
+        );
 
         $this->calendar->addTimeZone($timezone);
         // loop each day
@@ -339,6 +339,10 @@ class Appointments
             $appointmentEnd->setTime($parts[0], $parts[1], $parts[2]);
 
         }
+        $location = null;
+        if (array_key_exists('location', $appointment)) {
+            $location = $appointment['location'];
+        }
 
         if ($this->calendarName === $appointment['calendar']) {
             $this->debug('Will add appointment to calendar.');
@@ -348,10 +352,15 @@ class Appointments
             $uid         = new UniqueIdentifier($string);
             $occurrence  = new TimeSpan(new DateTime($appointmentStart->toDateTime(), true), new DateTime($appointmentEnd->toDateTime(), true));
             $organizer   = new Organizer(new EmailAddress($_ENV['ORGANIZER_MAIL']), $_ENV['ORGANIZER_NAME'], null, null);
+            $loc         = null;
+            if (null !== $location) {
+                $loc = new Location('Thuis of op kantoor.');
+            }
 
             $vEvent = new Event($uid);
             $vEvent->setOrganizer($organizer)
                    ->setSummary($title)
+                   ->setLocation($loc)
                    ->setDescription($description)->setOccurrence($occurrence);
             $this->calendar->addEvent($vEvent);
         }
