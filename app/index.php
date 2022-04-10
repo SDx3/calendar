@@ -36,6 +36,13 @@ use Monolog\Logger;
 $dotenv = Dotenv::createImmutable(__DIR__);
 $dotenv->load();
 
+// if must always require secret and secret isn't correct, don't work:
+$secret = array_key_exists('secret', $_GET) ? $_GET['secret'] : false;
+if('true' === $_ENV['ALWAYS_REQUIRE_SECRET'] && $secret !== $_ENV['CALENDAR_SECRET']) {
+    die('NOK');
+}
+
+
 $debug = array_key_exists('debug', $_GET) && 'true' === $_GET['debug'];
 if ($debug) {
     echo '<pre>';
