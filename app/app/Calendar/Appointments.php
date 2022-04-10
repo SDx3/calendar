@@ -148,6 +148,9 @@ class Appointments
         $this->debug('Now in generate()');
         $this->calendar  = new Calendar;
         $phpDateTimeZone = new PhpDateTimeZone($_ENV['TZ']);
+
+        //$this->calendar->setProductIdentifier()
+
         $timezone        = TimeZone::createFromPhpDateTimeZone(
             $phpDateTimeZone,
             $this->start->toDateTimeImmutable(),
@@ -163,7 +166,7 @@ class Appointments
             $current->addDay();
         }
         // Transform domain entity into an iCalendar component
-        $componentFactory = new CalendarFactory(new TransparentEventFactory);
+        $componentFactory = new MyCalendarFactory(new TransparentEventFactory);
 
         return (string) $componentFactory->createCalendar($this->calendar);
     }
