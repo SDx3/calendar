@@ -39,6 +39,7 @@ $dotenv->load();
 // if must always require secret and secret isn't correct, don't work:
 $secret = array_key_exists('secret', $_GET) ? $_GET['secret'] : false;
 if('true' === $_ENV['ALWAYS_REQUIRE_SECRET'] && $secret !== $_ENV['CALENDAR_SECRET']) {
+    header('HTTP/1.0 403 Forbidden');
     die('NOK');
 }
 

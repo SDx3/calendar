@@ -129,6 +129,7 @@ class Appointments
         }
         // exit if no such calendar exists
         if (false === $validCalendar) {
+            header('HTTP/1.0 403 Forbidden');
             echo 'NOK';
             exit;
         }
