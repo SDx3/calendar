@@ -14,8 +14,6 @@ use Eluceo\iCal\Presentation\Factory\CalendarFactory;
 
 require 'vendor/autoload.php';
 
-$event = new Event();
-
 $start = Carbon::now($_ENV['TZ'])->setHour(9)->setMinute(0)->setSecond(0);
 $end   = Carbon::now($_ENV['TZ'])->setHour(17)->setMinute(0)->setSecond(0);
 
@@ -34,7 +32,7 @@ $vEvent->setOrganizer($organizer)
        ->setDescription($description)->setOccurrence($occurrence);
 
 
-$calendar           = new Calendar([$event]);
+$calendar           = new Calendar([$vEvent]);
 $iCalendarComponent = (new CalendarFactory())->createCalendar($calendar);
 
 
