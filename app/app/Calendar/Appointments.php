@@ -27,7 +27,6 @@ declare(strict_types=1);
 
 namespace App\Calendar;
 
-use App\SharedTraits;
 use Carbon\Carbon;
 use DateTimeZone as PhpDateTimeZone;
 use Eluceo\iCal\Domain\Entity\Calendar;
@@ -39,7 +38,6 @@ use Eluceo\iCal\Domain\ValueObject\Location;
 use Eluceo\iCal\Domain\ValueObject\Organizer;
 use Eluceo\iCal\Domain\ValueObject\TimeSpan;
 use Eluceo\iCal\Domain\ValueObject\UniqueIdentifier;
-use Eluceo\iCal\Presentation\Factory\CalendarFactory;
 use JsonException;
 
 /**
@@ -152,7 +150,7 @@ class Appointments
 
         //$this->calendar->setProductIdentifier()
 
-        $timezone        = TimeZone::createFromPhpDateTimeZone(
+        $timezone = TimeZone::createFromPhpDateTimeZone(
             $phpDateTimeZone,
             $this->start->toDateTimeImmutable(),
             $this->end->toDateTimeImmutable()
@@ -262,14 +260,14 @@ class Appointments
                 // every three months starting in mar
                 return $date->day === 1 && in_array($date->month, [3, 6, 9, 12]);
             case 19:
-                // every two months + a little bit
+                // every two months + a little
                 $diff = $date->diffInDays($this->systemStart);
                 if (0 === $diff % $count) {
                     return true;
                 }
                 return false;
             case 20:
-                // every three months starting in march
+                // every three months starting in March
                 // is first of Mar, Jun, Sep or Dec
                 return $date->day === 1 && in_array($date->month, [3, 6, 9, 12]);
             case 21:
@@ -280,6 +278,17 @@ class Appointments
     }
 
     /**
+     * Coffee slot. Depending on the week, this rotates.
+     * Monday slots are 1, 2, 3 and 4
+     * Tuesday slots are 5, 6, 7 and 8
+     * Wednesday slots are 9, 10, 11 and 12
+     * Thursday slots are 13, 14, 15 and 16
+     *
+     * This means that each week has slots like this:
+     * Week 1: 1, 5, 9, 13
+     * Week 2: 2, 6, 10, 14
+     * Week 3: 3, 7, 11, 15
+     * Week 4: 4, 8, 12, 16
      * @param Carbon $date
      *
      * @return int
@@ -289,22 +298,22 @@ class Appointments
         $weekNr = $date->isoWeek - 1;
         $slot   = 0;
         if ($date->isMonday()) {
-            // slot X op maandag (1,2,3,4).
+            // slot X op Monday (1,2,3,4).
             $slot = ($weekNr % 4) + 1;
         }
 
         if ($date->isTuesday()) {
-            // slot X op dinsdag (5,6,7,8).
+            // slot X op Tuesday (5,6,7,8).
             $slot = ($weekNr % 4) + 5;
         }
 
         if ($date->isWednesday()) {
-            // slot X op woensdag
+            // slot X op Wednesday
             $slot = ($weekNr % 4) + 9;
         }
 
         if ($date->isThursday()) {
-            // slot X op donderdag
+            // slot X op Thursday
             $slot = ($weekNr % 4) + 13;
         }
 
