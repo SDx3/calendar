@@ -274,6 +274,10 @@ class Appointments
                 return $date->isSaturday();
             case 22:
                 return $date->isSunday();
+            case 23:
+                return $date->isMonday() || $date->isThursday();
+            case 24:
+                return $date->isWednesday();
         }
     }
 
