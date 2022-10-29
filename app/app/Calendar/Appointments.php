@@ -226,10 +226,12 @@ class Appointments
 
                 return $secondFriday->isSameDay($date);
             case 6:
+                // second wednesday
                 $secondWednesday = Carbon::parse(sprintf('second Wednesday of %s', $date->format('F Y')));
 
                 return $secondWednesday->isSameDay($date);
             case 7:
+                // weekday
                 return $date->isWeekday();
             case 8:
                 return $date->isMonday() || $date->isThursday() || $date->isSaturday();
